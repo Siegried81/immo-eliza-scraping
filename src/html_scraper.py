@@ -9,6 +9,51 @@ import html
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+FIELD_MAP = {
+    "property_state": "State of the property",
+    "is_rented": "Currently leased",
+    "build_year": "Build Year",
+    "num_bedrooms": "Number of bedrooms",
+    "livable_surface": "Livable surface",
+    "furnished": "Furnished",
+    "kitchen_equipment": "Kitchen equipment",
+    "kitchen_type": "Kitchen type",
+    "num_bathrooms": "Number of bathrooms",
+    "num_showers": "Number of showers",
+    "num_toilets": "Number of toilets",
+    "heating_type": "Type of heating",
+    "glazing_type": "Type of glazing",
+    "elevator": "Elevator",
+    "num_facades": "Number of facades",
+    "num_floors": "Number of floors",
+    "orientation": "Orientation of the front facade",
+    "garden": "Garden",
+    "terrace": "Terrace",
+    "terrace_orientation": "Terrace orientation",
+    "sewer_connection": "Sewer Connection",
+    "gas": "Gas",
+    "running_water": "Running water",
+    "balcony": "Balcony",
+    "land_surface": "Total land surface",
+    "primary_energy_consumption": "Specific primary energy consumption",
+    "epc_peb_reference": "EPC/PEB reference",
+    "planning_permission_granted": "Planning permission granted",
+    "g_score": "G-score",
+    "p_score": "P-score",
+    "swimming_pool": "Swimming pool",
+    "cellar": "Cellar",
+    "veranda": "Veranda",
+    "dining_room": "Dining room",
+    "attic": "Attic",
+    "co2_emission": "CO2 emission",
+    "cert_electrical_installation": "Certification - Electrical installation",
+    "epc_validity_date": "Validity date EPC/PEB",
+    "peb_category": "PEB category",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "province": "Province",
+}
+    
 def clean_text(text: str) -> str:
   """Clean the extracted text by removing extra whitespace and special characters.
   Args:        
@@ -40,51 +85,6 @@ def parse_more_info(more_info: Tag | None) -> dict:
       dict | {}: data detail of each property or an empty dict if url not found.   
     """
 
-    FIELD_MAP = {
-        "property_state": "State of the property",
-        "is_rented": "Currently leased",
-        "build_year": "Build Year",
-        "num_bedrooms": "Number of bedrooms",
-        "livable_surface": "Livable surface",
-        "furnished": "Furnished",
-        "kitchen_equipment": "Kitchen equipment",
-        "kitchen_type": "Kitchen type",
-        "num_bathrooms": "Number of bathrooms",
-        "num_showers": "Number of showers",
-        "num_toilets": "Number of toilets",
-        "heating_type": "Type of heating",
-        "glazing_type": "Type of glazing",
-        "elevator": "Elevator",
-        "num_facades": "Number of facades",
-        "num_floors": "Number of floors",
-        "orientation": "Orientation of the front facade",
-        "garden": "Garden",
-        "terrace": "Terrace",
-        "terrace_orientation": "Terrace orientation",
-        "sewer_connection": "Sewer Connection",
-        "gas": "Gas",
-        "running_water": "Running water",
-        "balcony": "Balcony",
-        "land_surface": "Total land surface",
-        "primary_energy_consumption": "Specific primary energy consumption",
-        "epc_peb_reference": "EPC/PEB reference",
-        "planning_permission_granted": "Planning permission granted",
-        "g_score": "G-score",
-        "p_score": "P-score",
-        "swimming_pool": "Swimming pool",
-        "cellar": "Cellar",
-        "veranda": "Veranda",
-        "dining_room": "Dining room",
-        "attic": "Attic",
-        "co2_emission": "CO2 emission",
-        "cert_electrical_installation": "Certification - Electrical installation",
-        "epc_validity_date": "Validity date EPC/PEB",
-        "peb_category": "PEB category",
-        "latitude": "Latitude",
-        "longitude": "Longitude",
-        "province": "Province",
-    }
-        
     if more_info is None:
         return {
             field: ""
@@ -144,8 +144,17 @@ def parse_property(url: str, header: dict) -> dict:
 
     info['url'] = url
 
-    info["name"] = page_header.find("span", class_="detail__header_title_main").get_text(" ", strip=True).rsplit(" ", 1)[0]
-    
+    name_tag = page_header.find(
+      "span",
+      class_="detail__header_title_main"
+    )
+
+    info["name"] = (
+      name_tag.get_text(" ", strip=True).rsplit(" ", 1)[0]
+      if name_tag
+      else ""
+    )
+
     address_info = page_header.find(
         "div",
         class_="detail__header_address"
@@ -158,7 +167,11 @@ def parse_property(url: str, header: dict) -> dict:
           if spans
           else ""
       )
-      city = address_info.find("span", class_="city-line").get_text(strip=True)
+      city_tag = address_info.find(
+        "span",
+        class_="city-line"
+      )
+      city = city_tag.get_text(strip=True) if city_tag else ""
       parts = city.split(" ", 1)
       info["postcode"] = parts[0] if len(parts) > 1 else ""
       info["city"] = parts[1] if len(parts) > 1 else parts[0]
