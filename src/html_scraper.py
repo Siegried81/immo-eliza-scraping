@@ -106,7 +106,19 @@ def parse_more_info(more_info: Tag | None) -> dict:
 
     return cleaned_more_info
 
-def get_province_by_postcode(postcode: str):
+def get_province_by_postcode(postcode: str) -> str | None:
+    """
+    Map a Belgian postcode to its corresponding province or region.
+
+    The function converts the input postcode to an integer and matches it
+    against predefined postcode ranges used in Belgium.
+
+    Args:
+        postcode (str): Postal code as string or number.
+
+    Returns:
+        str | None: Name of the province/region if matched, otherwise None.
+    """
     try:
         p = int(str(postcode).strip())
     except:
@@ -153,19 +165,6 @@ def get_province_by_postcode(postcode: str):
     # Luxembourg
     if 6600 <= p <= 6999:
         return "Luxembourg"
-
-    return None
-
-def get_province(postcode=None, city=None):
-    # ưu tiên postcode
-    if postcode:
-        result = get_province_by_postcode(postcode)
-        if result:
-            return result
-
-    # fallback city
-    if city:
-        return get_province_by_city(city)
 
     return None
 
