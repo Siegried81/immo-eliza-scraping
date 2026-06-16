@@ -30,7 +30,10 @@ def main():
   # ---------------------------------------
   logger.info("Fetching urls...")
   # Example:
-  urls = ["https://immovlan.be/en/detail/residence/for-sale/9600/ronse/rbw18859","https://immovlan.be/en/detail/penthouse/for-sale/2500/lier/rbw20388"]
+  urls = ["https://immovlan.be/en/detail/residence/for-sale/9600/ronse/rbw18859",
+          "https://immovlan.be/en/detail/penthouse/for-sale/2500/lier/rbw20388", 
+          "https://immovlan.be/en/detail/duplex/for-sale/1070/anderlecht/vbe34263"
+        ]
 
   # =========================
   # 2. SCRAPE PROPERTY DETAILS
