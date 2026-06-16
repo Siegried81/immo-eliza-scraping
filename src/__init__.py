@@ -1,1 +1,0 @@
-from .html_scraper import parse_property, to_json_file
