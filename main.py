@@ -30,31 +30,71 @@ def main():
   # ---------------------------------------
   logger.info("Fetching urls...")
   # Example:
-  urls = ["https://immovlan.be/en/detail/residence/for-sale/9600/ronse/rbw18859",
-          "https://immovlan.be/en/detail/penthouse/for-sale/2500/lier/rbw20388", 
-          "https://immovlan.be/en/detail/duplex/for-sale/1070/anderlecht/vbe34263"
-        ]
+  # urls = ["https://immovlan.be/en/detail/residence/for-sale/9600/ronse/rbw18859",
+  #         "https://immovlan.be/en/detail/penthouse/for-sale/2500/lier/rbw20388", 
+  #         "https://immovlan.be/en/detail/duplex/for-sale/1070/anderlecht/vbe34263"
+  #       ]
+
+  urls = {
+    "anvers": ["https://immovlan.be/en/detail/residence/for-sale/9600/ronse/rbw18859",
+      "https://immovlan.be/en/detail/penthouse/for-sale/2500/lier/rbw20388", 
+      "https://immovlan.be/en/detail/duplex/for-sale/1070/anderlecht/vbe34263",
+      "https://immovlan.be/en/detail/duplex/for-sale/1070/anderlecht/vbe34263"
+    ],
+    "limbourg": [], 
+    "flandre-orientale": [],
+    "brabant-flamand": [], 
+    "flandre-occidentale": [],
+    "bruxelles": [], 
+    "hainaut": [], 
+    "liege": [],
+    "luxembourg": [], 
+    "namur": [],
+    "brabant-wallon": [],
+  }
 
   # =========================
   # 2. SCRAPE PROPERTY DETAILS
   # =========================
   dataset = []
-  for url in urls:
-    try:
-      data = parse_property(url, {
-        "User-Agent": config["user_agent"],
-        "Accept-Language": config["accept_language"]
-      })
-      dataset.append(data)
-      time.sleep(0.5)  # prevent blocking
-    except:
-      continue
+  data_json = {
+    "anvers": {},
+    "limbourg": {},
+    "flandre-orientale": {},
+    "brabant-flamand": {},
+    "flandre-occidentale": {},
+    "bruxelles": {},
+    "hainaut": {},
+    "liege": {},
+    "luxembourg": {},
+    "namur": {},
+    "brabant-wallon": {},
+  }
+  property_ids = []
+
+  for province, url_list in urls.items():
+    for url in url_list:
+      try:
+        data = parse_property(url, {
+          "User-Agent": config["user_agent"],
+          "Accept-Language": config["accept_language"]
+        }, province)
+
+        if data["property_id"] not in property_ids:
+          property_ids.append(data["property_id"])
+          dataset.append(data)
+          if data["postcode"] not in data_json[province]:
+            data_json[province][data["postcode"]] = []
+          data_json[province][data["postcode"]].append(data)
+        time.sleep(0.5)  # prevent blocking
+      except:
+        continue
 
   # ---------------------------------------
   # 3. Save properties data to JSON file
   # ---------------------------------------
   logger.info(f"Saving data to {output_filepath}...")
-  to_json_file(dataset, output_filepath)
+  to_json_file(data_json, output_filepath)
 
 # ---------------------------------------
 # Program entry point

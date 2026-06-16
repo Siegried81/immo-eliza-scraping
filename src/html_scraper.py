@@ -29,6 +29,7 @@ FIELD_MAP = {
     "num_floors": "Number of floors",
     "orientation": "Orientation of the front facade",
     "garden": "Garden",
+    "garage": "Garage",
     "terrace": "Terrace",
     "terrace_orientation": "Terrace orientation",
     "sewer_connection": "Sewer Connection",
@@ -106,69 +107,7 @@ def parse_more_info(more_info: Tag | None) -> dict:
 
     return cleaned_more_info
 
-def get_province_by_postcode(postcode: str) -> str | None:
-    """
-    Map a Belgian postcode to its corresponding province or region.
-
-    The function converts the input postcode to an integer and matches it
-    against predefined postcode ranges used in Belgium.
-
-    Args:
-        postcode (str): Postal code as string or number.
-
-    Returns:
-        str | None: Name of the province/region if matched, otherwise None.
-    """
-    try:
-        p = int(str(postcode).strip())
-    except:
-        return None
-
-    # Brussels-Capital Region
-    if 1000 <= p <= 1299:
-        return "Brussels-Capital Region"
-
-    # Flemish Brabant (Leuven area + surroundings)
-    if 1300 <= p <= 1499:
-        return "Walloon Brabant"
-    if 1500 <= p <= 1999:
-        return "Flemish Brabant"
-
-    # Antwerp
-    if 2000 <= p <= 2999:
-        return "Antwerp"
-
-    # Limburg
-    if 3500 <= p <= 3999:
-        return "Limburg"
-
-    # East Flanders
-    if 9000 <= p <= 9999:
-        return "East Flanders"
-
-    # West Flanders
-    if 8000 <= p <= 8999:
-        return "West Flanders"
-
-    # Hainaut
-    if 6000 <= p <= 6599 or 7000 <= p <= 7999:
-        return "Hainaut"
-
-    # Liège
-    if 4000 <= p <= 4999:
-        return "Liège"
-
-    # Namur
-    if 5000 <= p <= 5999:
-        return "Namur"
-
-    # Luxembourg
-    if 6600 <= p <= 6999:
-        return "Luxembourg"
-
-    return None
-
-def parse_property(url: str, header: dict) -> dict:
+def parse_property(url: str, header: dict, province: str) -> dict:
     """Extract the data detail of each property from the HTML content.
     Args:        
       url (str): The url link to the property.
@@ -220,6 +159,7 @@ def parse_property(url: str, header: dict) -> dict:
         class_="detail__header_address"
     )
 
+    info["province"] = province
     if address_info:
       spans = address_info.find_all("span")
       info["address"] = (
@@ -235,12 +175,10 @@ def parse_property(url: str, header: dict) -> dict:
       parts = city.split(" ", 1)
       info["postcode"] = parts[0] if len(parts) > 1 else ""
       info["city"] = parts[1] if len(parts) > 1 else parts[0]
-      info["province"] = get_province_by_postcode(info["postcode"])
     else:
         info["address"] = ""
         info["postcode"] = ""
         info["city"] = ""
-        info["province"] = ""
 
     description_tag = content.find("div", class_="dynamic-description")
 
