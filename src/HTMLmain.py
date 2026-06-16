@@ -68,5 +68,5 @@ def run():
         json.dump(dataset, f, ensure_ascii=False, indent=2)  
 
     print("Done")  
-
-run()  
+if __name__ == "__main__":
+    run()
