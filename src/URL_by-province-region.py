@@ -7,8 +7,8 @@ HEADERS = {"User-Agent": "Mozilla/5.0 SiegExerciseImmo"}     # fake browser head
 
 BASE_URL = "https://immovlan.be/en/real-estate?transactiontypes=for-sale&propertytypes=house,apartment&islifeannuity=no&includenewconstruction=no&noindex=1"  # base listing url
 
-# REGIONS = slug -> display name
-REGIONS = {
+# PROVINCES = slug -> display name
+PROVINCES = {
     "antwerp": "Anvers",
     "limburg": "Limbourg",
     "east-flanders": "Flandre-Orientale",
@@ -19,14 +19,7 @@ REGIONS = {
     "liege": "Liège",
     "luxembourg": "Luxembourg",
     "namur": "Namur",
-    "walloon-brabant": "Brabant-Wallon"
-}
-
-# PROVINCES = grouping of regions
-PROVINCES = {
-    "Flanders": ["antwerp", "limburg", "east-flanders", "flemish-brabant", "west-flanders"],
-    "Wallonia": ["hainaut", "liege", "luxembourg", "namur", "walloon-brabant"],
-    "Brussels": ["brussels"]
+    "brabant-wallon": "Brabant Wallon"
 }
 
 MAX_PAGES = 200                                              # safety cap per region
@@ -47,11 +40,11 @@ def extract_links(html):                                     # extract property 
     return links
 
 
-def scrape_by_region(session):                               # scrape all regions
+def scrape_by_province(session):                               # scrape all regions
     df = pd.DataFrame(columns=["level", "region", "url"])    # result dataframe
 
-    for slug, name in REGIONS.items():                       # loop regions
-        print(f"\n===== REGION: {name} =====")
+    for slug, name in PROVINCES.items():                       # loop regions
+        print(f"\n===== PROVINCES: {name} =====")
 
         prev = len(df)                                       # previous size tracker
 
@@ -95,44 +88,20 @@ def scrape_by_region(session):                               # scrape all region
 
     return df
 
-
-def scrape_by_province(session, df_region):                  # aggregate by province grouping
-    df_prov = pd.DataFrame(columns=["level", "province", "url"])
-
-    for region, slugs in PROVINCES.items():                 # loop province groups
-        print(f"\n===== PROVINCE GROUP: {region} =====")
-
-        for slug in slugs:                                  # loop inside group
-            subset = df_region[df_region["region"] == REGIONS[slug]].copy()
-
-            subset["level"] = "province"                   # tag level
-            subset["province"] = region                    # assign group name
-
-            df_prov = pd.concat([df_prov, subset], ignore_index=True)
-
-        df_prov = df_prov.drop_duplicates(subset=["url"])  # deduplicate
-        print(f"{region} total: {len(df_prov)}")
-
-    return df_prov
-
-
 def run():                                                 # main runner
 
     session = requests.Session()                           # session for speed
     session.headers.update(HEADERS)                        # set headers
 
     try:
-        df_region = scrape_by_region(session)              # step 1: region scrape
-        df_province = scrape_by_province(session, df_region)  # step 2: grouping
+        df_province = scrape_by_province(session)   
 
     except KeyboardInterrupt:                              # manual stop
         print("\nStopped manually")
         return
 
-    df_region.to_csv("immo_by_region.csv", index=False, sep=";", encoding="utf-8-sig")
     df_province.to_csv("immo_by_province.csv", index=False, sep=";", encoding="utf-8-sig")
 
-    print(f"\nDONE REGION → {len(df_region)} rows")
     print(f"DONE PROVINCE → {len(df_province)} rows")
 
 
