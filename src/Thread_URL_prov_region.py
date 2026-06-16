@@ -9,6 +9,12 @@ from concurrent.futures import ThreadPoolExecutor
 HEADERS = {"User-Agent": "Mozilla/5.0 SiegExerciceImmo"}    # I'm not a bot
 BASE_URL = "https://immovlan.be/en/real-estate?transactiontypes=for-sale&propertytypes=house,apartment&islifeannuity=no&includenewconstruction=no&noindex=1"
 
+# We add price ranges to break the site's limit and get more results
+PRICE_RANGES = [
+    (0, 200000), (200001, 300000), (300001, 400000), 
+    (400001, 500000), (500001, 750000), (750001, 1000000), (1000001, 99999999)
+]
+
                                                   # dict mapping regions to their respective provinces
 GEO_DATA = {
     "bruxelles": {"name": "Bruxelles-Capitale", "provinces": ["brussels"]},
@@ -16,12 +22,11 @@ GEO_DATA = {
     "wallonie": {"name": "Wallonie", "provinces": ["hainaut", "liege", "luxembourg", "namur", "brabant-wallon"]}
 }
 
-MAX_PAGES = 200        
-DELAY = 0.5
-MAX_WORKERS = 10                                  # max nb of threads running simultaneously
+MAX_PAGES = 400
+MAX_WORKERS = 25                                  # max nb of threads running simultaneously
 
 def extract_links(html):
-    """fct to parse HTML content and extract property detail links."""
+    # fct to parse HTML content and extract property detail links
     if not html: return []                        # if HTML empty, return an empty list
     soup = BeautifulSoup(html, "html.parser")     # initialize the HTML parser
     links = []
@@ -33,15 +38,15 @@ def extract_links(html):
             links.append(href)                    # append the full URL to the list
     return list(set(links))                       # return unique URLs by converting to a set
 
-def fetch_data(region_slug, province_slug, region_name):
-    """fct executed by threads to scrape a specific province."""
+def fetch_data(region_slug, province_slug, region_name, min_p, max_p):
+    # fct executed by threads to scrape a specific province
     session = requests.Session()                  # persistent session for efficient networking
     session.headers.update(HEADERS)               # apply defined headers to the session
     results = []                                  # local list to collect data for this specific thread
         
     for page in range(1, MAX_PAGES + 1):
                                                   # URL with region, province & page nb filters
-        url = f"{BASE_URL}&regions={region_slug}&provinces={province_slug}&page={page}"
+        url = f"{BASE_URL}&regions={region_slug}&provinces={province_slug}&minprice={min_p}&maxprice={max_p}&page={page}"
         try:
             r = session.get(url, timeout=20)      # get request
             if r.status_code != 200: break
@@ -49,10 +54,10 @@ def fetch_data(region_slug, province_slug, region_name):
             links = extract_links(r.text) 
             if not links: break 
             
-            for link in links:
+            for link in links:                    # iterate through links & add it
                 results.append({"region": region_name, "province": province_slug, "url": link})
-            
-            time.sleep(DELAY)
+            print(f"Page {page}/{MAX_PAGES}")          
+            time.sleep(0.8)
             
         except Exception as e:
             print(f"[ERROR] {province_slug} page {page}: {e}")
@@ -63,21 +68,21 @@ def fetch_data(region_slug, province_slug, region_name):
 def run():
     all_data = []
                                                   # list of tasks for each province in the hierarchy
-    tasks = [(reg, prov, data["name"]) for reg, data in GEO_DATA.items() for prov in data["provinces"]]
+    tasks = [(reg, prov, data["name"], p[0], p[1]) for reg, data in GEO_DATA.items() for prov in data["provinces"] for p in PRICE_RANGES]
     
     try:                                             
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:   # tasks in //
-            futures = [executor.submit(fetch_data, reg, prov, name) for reg, prov, name in tasks]
+            futures = [executor.submit(fetch_data, *task) for task in tasks]
             for future in futures:  
                 all_data.extend(future.result())
     except KeyboardInterrupt:
-                                                 # catch the ctrl+C
+                                                  # catch the ctrl+C
         print("Keyboard interruption.")
 
     df = pd.DataFrame(all_data)                   # convert list of dic into DF
     df = df.drop_duplicates(subset=["url"])
     
-    df.to_csv(save_path, index=False, sep=";", encoding="utf-8-sig")
+    df.to_csv("URL_by_province_region.csv", index=False, sep=";", encoding="utf-8-sig")
  
     print(f"Total unique URLs: {len(df)}")
 
