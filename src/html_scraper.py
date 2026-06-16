@@ -50,8 +50,6 @@ FIELD_MAP = {
     "cert_electrical_installation": "Certification - Electrical installation",
     "epc_validity_date": "Validity date EPC/PEB",
     "peb_category": "PEB category",
-    "latitude": "Latitude",
-    "longitude": "Longitude",
 }
  
 def clean_text(text: str) -> str:
@@ -267,6 +265,20 @@ def parse_property(url: str, header: dict) -> dict:
           cadastral_income_text = cadastral_income_tag.parent.get_text(" ", strip=True)
           info["cadastral_income"] = re.sub(r"[^\d]", "", cadastral_income_text)
 
+    lat = ""
+    lng = ""
+    scripts = soup.find_all("script")
+    for script in scripts:
+        if script.string and "AD_LATITUDE" in script.string:
+          text = script.string
+          lat_match = re.search(r"AD_LATITUDE\s*=\s*'([^']+)'", text)
+          lng_match = re.search(r"AD_LONGITUDE\s*=\s*'([^']+)'", text)
+          lat = lat_match.group(1) if lat_match else None
+          lng = lng_match.group(1) if lng_match else None
+          break
+
+    info["latitude"] = lat
+    info["longitude"] = lng
 
     more_info = content.find("div", class_="general-info-wrapper")
     info.update(parse_more_info(more_info))
