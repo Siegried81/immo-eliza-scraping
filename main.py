@@ -21,7 +21,7 @@ def main():
   # Get project base directory
   base_dir = os.path.dirname(__file__)
   url_by_province_filepath = os.path.join(base_dir, "./data/url_by_province.csv")
-  output_filepath = os.path.join(base_dir, "belgium_properties.json")
+  output_filepath = os.path.join(base_dir, "./data/data.json")
 
   user_agent = UserAgent()
 
@@ -55,7 +55,8 @@ def main():
   # ---------------------------------------
   # 1. Get Urls
   # ---------------------------------------
-  urls = {"antwerp": [],
+  urls = {
+     "antwerp": [],
     "limburg": [], 
     "east-flanders": [],
     "vlaams-brabant": [], 
@@ -65,7 +66,8 @@ def main():
     "liege": [],
     "luxembourg": [], 
     "namur": [],
-    "brabant-wallon": []}
+    "brabant-wallon": []
+  }
   
   if not use_existing_urls:
     logger.info("Fetching URLs...")
@@ -113,12 +115,12 @@ def main():
     logger.info(f"Time spent : {time.perf_counter() - start_time} seconds.")
     dataset = []
     data_json = {
-      "anvers": {},
-      "limbourg": {},
-      "flandre-orientale": {},
-      "brabant-flamand": {},
-      "flandre-occidentale": {},
-      "bruxelles": {},
+      "antwerp": {},
+      "limburg": {},
+      "east-flanders": {},
+      "vlaams-brabant": {},
+      "west-flanders": {},
+      "brussels": {},
       "hainaut": {},
       "liege": {},
       "luxembourg": {},
