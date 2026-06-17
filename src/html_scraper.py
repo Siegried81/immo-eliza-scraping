@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 from bs4.element import Tag
-from src.points_of_interest import Interests_parser
+from points_of_interest import Interests_parser
 import html
 import json
 import logging
@@ -166,4 +166,4 @@ if __name__ == "__main__":
           "Accept-Language": "en-US,en;q=0.9"
         }, "brussels")
   
-  to_json_file(data, "data.json")
+  to_json_file(data, "../data/data.json")

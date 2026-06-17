@@ -8,7 +8,7 @@ import time
 
 
 # this generates a new random browser identity each time we call ua.random
-ua = UserAgent()
+user_agent = UserAgent()
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ GEO_DATA = {
     "wallonie": {"name": "Wallonie", "provinces": ["hainaut", "liege", "luxembourg", "namur", "brabant-wallon"]}
 }
 
-MAX_PAGES = 50
+MAX_PAGES = 2
 MAX_WORKERS = 10                                  # max nb of threads running simultaneously
 
 def extract_links(html):
@@ -53,7 +53,7 @@ def fetch_data(region_slug, province_slug, region_name, min_p, max_p, session):
                                                   # URL with region, province & page nb filters
         url = f"{BASE_URL}&regions={region_slug}&provinces={province_slug}&minprice={min_p}&maxprice={max_p}&page={page}"
         try:
-            r = session.get(url, headers={"User-Agent": ua.random}, timeout=20)      # get request
+            r = session.get(url, headers={"User-Agent": user_agent.random}, timeout=20)      # get request
             if r.status_code != 200: break
             
             links = extract_links(r.text) 
@@ -61,12 +61,11 @@ def fetch_data(region_slug, province_slug, region_name, min_p, max_p, session):
             
             for link in links:                    # iterate through links & add it
                 results.append({"region": region_name, "province": province_slug, "url": link})
-            #print(f"Page {page}/{MAX_PAGES}")
+
                    
             time.sleep(0.2)
             
         except Exception as e:
-            #print(f"[ERROR] {province_slug} page {page}: {e}")
             logger.info(f"[ERROR] {province_slug} page {page}: {e}")
             break
             
@@ -90,8 +89,8 @@ def run():
 
     df = pd.DataFrame(all_data)                   # convert list of dic into DF
     df = df.drop_duplicates(subset=["url"])
-    
-    df.to_csv("./data/url_by_province.csv", index=False, sep=";", encoding="utf-8-sig")
+
+    df.to_csv("../data/url_by_province.csv", index=False, sep=";", encoding="utf-8-sig")
  
     print(f"Total unique URLs: {len(df)}")
 

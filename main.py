@@ -33,25 +33,7 @@ def main():
   # ---------------------------------------
   logger.info("Fetching urls...")
 
-  """
-  urls = {
-    "anvers": ["https://immovlan.be/en/detail/residence/for-sale/9600/ronse/rbw18859",
-      "https://immovlan.be/en/detail/penthouse/for-sale/2500/lier/rbw20388", 
-      "https://immovlan.be/en/detail/duplex/for-sale/1070/anderlecht/vbe34263",
-      "https://immovlan.be/en/detail/duplex/for-sale/1070/anderlecht/vbe34263"
-    ],
-    "limbourg": [], 
-    "flandre-orientale": [],
-    "brabant-flamand": [], 
-    "flandre-occidentale": [],
-    "bruxelles": [], 
-    "hainaut": [], 
-    "liege": [],
-    "luxembourg": [], 
-    "namur": [],
-    "brabant-wallon": [],
-  }
-  """
+  
   urls = {"antwerp": [],
     "limburg": [], 
     "east-flanders": [],
@@ -64,11 +46,12 @@ def main():
     "namur": [],
     "brabant-wallon": []}
 
+  run()
+  
   start_time = time.perf_counter()
-  with open("src/url_by_province.csv") as csv:
+  with open("./data/url_by_province.csv") as csv:
     lines = csv.read().strip().split("\n")[1:]
     for line in lines:
-      #print(line)
       region, province, url = line.split(";")
       urls[province].append(url)
 
