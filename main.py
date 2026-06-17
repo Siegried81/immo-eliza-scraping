@@ -55,7 +55,6 @@ def main():
   # ---------------------------------------
   # 1. Get Urls
   # ---------------------------------------
-  logger.info("Fetching urls...")
   urls = {"antwerp": [],
     "limburg": [], 
     "east-flanders": [],
@@ -68,8 +67,12 @@ def main():
     "namur": [],
     "brabant-wallon": []}
   
+  if not use_existing_urls:
+    logger.info("Fetching URLs...")
+    fetch_urls(url_by_province_filepath)
+
   total_urls = 0
-  if use_existing_urls:
+  if os.path.exists(url_by_province_filepath):
     with open(url_by_province_filepath, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f, delimiter=";")
 
@@ -80,8 +83,6 @@ def main():
             if province in urls and url.startswith("http"):
                 urls[province].append(url)
                 total_urls += 1
-  else:
-    total_urls = fetch_urls(url_by_province_filepath)
 
   print("\n=== URL Source Loaded ===")
   print(f"Total URLs: {total_urls}")

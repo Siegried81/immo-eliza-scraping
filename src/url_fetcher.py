@@ -91,7 +91,6 @@ def fetch_urls(filepath):
     df.to_csv(filepath, index=False, sep=";", encoding="utf-8-sig")
  
     print(f"Total unique URLs: {len(df)}")
-    return len(df)
 
 if __name__ == "__main__": 
     start_time = time.perf_counter()
