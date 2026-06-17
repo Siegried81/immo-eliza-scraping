@@ -1,1 +1,1 @@
-from .html_scraper import parse_property, to_json_file
+from .URL_by_province_region import fetch_data, run
