@@ -1,10 +1,9 @@
 from fake_useragent import UserAgent   
-
-from src import parse_property, to_json_file, run
-import json
+from src import parse_property, to_json_file
 import logging
 import os
 import time
+import csv
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -21,19 +20,42 @@ def main():
   # ---------------------------------------
   # Get project base directory
   base_dir = os.path.dirname(__file__)
-
+  url_by_province_filepath = os.path.join(base_dir, "./data/url_by_province.csv")
   output_filepath = os.path.join(base_dir, "belgium_properties.json")
 
   user_agent = UserAgent()
 
   logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
   logger = logging.getLogger(__name__)
+# ---------------------------------------
+# Choose URL source mode
+# ---------------------------------------
+  print("\n=== Choose URL source ===")
+  print("1. Use previously scraped URLs")
+  print("2. Scrape URLs again")
+
+  use_existing_urls = True
+  if os.path.exists(url_by_province_filepath):
+    while True:
+      choice_url_mode = input("Choose an option: ")
+
+      if choice_url_mode == "1":
+          use_existing_urls = True
+          break
+
+      elif choice_url_mode == "2":
+          use_existing_urls = False
+          break
+
+      else:
+          logger.info("Options are 1 or 2. Please choose again.")
+  else:
+    logger.info("No existing URL source found. Start scraping URLs.")
+
   # ---------------------------------------
   # 1. Get Urls
   # ---------------------------------------
   logger.info("Fetching urls...")
-
-  
   urls = {"antwerp": [],
     "limburg": [], 
     "east-flanders": [],
@@ -45,22 +67,23 @@ def main():
     "luxembourg": [], 
     "namur": [],
     "brabant-wallon": []}
-
-  run()
   
-  start_time = time.perf_counter()
-  with open("./data/url_by_province.csv") as csv:
-    lines = csv.read().strip().split("\n")[1:]
-    for line in lines:
-      region, province, url = line.split(";")
-      urls[province].append(url)
+  if use_existing_urls:
+    with open(url_by_province_filepath, "r", encoding="utf-8") as f:
+      reader = csv.DictReader(f, delimiter=";")
 
-  logger.info(f"Time spent : {time.perf_counter() - start_time} seconds.")
+      for row in reader:
+          province = row["province"].strip().lower()
+          url = row["url"].strip()
+
+          if province in urls and url.startswith("http"):
+              urls[province].append(url)
 
   # =========================
   # 2. SCRAPE PROPERTY DETAILS
   # =========================
   start_time = time.perf_counter()
+  logger.info(f"Time spent : {time.perf_counter() - start_time} seconds.")
   dataset = []
   data_json = {
     "anvers": {},
