@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 from bs4.element import Tag
-from .points_of_interest import Interests_parser
+from points_of_interest import Interests_parser
 import html
 import json
 import logging
@@ -65,7 +65,7 @@ def parse_property(url: str, header: dict, province: str) -> dict:
     if not url:
       return {}
     
-    logger.info(f"Processing property in {province} from {url}...")
+    logger.info(f"Processing data from {url}...")
     try:
       r = requests.get(url, headers=header, timeout=20)
       r.raise_for_status()
@@ -140,6 +140,19 @@ def parse_property(url: str, header: dict, province: str) -> dict:
     info["latitude"] = lat
     info["longitude"] = lng
 
+    property_type = None
+    for script in scripts:
+        if script.string and "propertyType:" in script.string:
+            property_type = script.string.split("propertyType:", 1)[1].split(",", 1)[0].strip().strip("'\"")
+            break
+
+    if property_type in ["Apartment", "Appartment"]:
+        property_type = "apartment"
+    elif property_type == "House":
+        property_type = "house"
+
+    info["property_type"] = property_type
+
     more_info = content.find("div", class_="general-info-wrapper")
     info.update(parse_more_info(more_info))
     info.update(interests.parsing(soup))
@@ -160,10 +173,11 @@ def to_json_file(data: dict, filepath: str) -> None:
 
 if __name__ == "__main__": 
   user_a = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
-  url = "https://immovlan.be/en/detail/studio/for-sale/1190/vorst/vbe35475"
+  url = "https://immovlan.be/en/detail/residence/for-sale/6120/nalinnes/vbe34060"
   data = parse_property(url, {
           "User-Agent": user_a,
           "Accept-Language": "en-US,en;q=0.9"
         }, "brussels")
+  
   
   to_json_file(data, "../data/data.json")
