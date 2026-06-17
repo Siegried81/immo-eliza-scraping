@@ -1,80 +1,20 @@
-import requests
-import re
 from bs4 import BeautifulSoup
+from bs4.element import Tag
+from src.points_of_interest import Interests_parser
+import html
 import json
 import logging
-from bs4.element import Tag
-import html
 import pandas as pd
+import re
+import requests
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-FIELD_MAP = {
-    "property_state": "State of the property",
-    "is_rented": "Currently leased",
-    "build_year": "Build Year",
-    "num_bedrooms": "Number of bedrooms",
-    "livable_surface": "Livable surface",
-    "furnished": "Furnished",
-    "kitchen_equipment": "Kitchen equipment",
-    "kitchen_type": "Kitchen type",
-    "num_bathrooms": "Number of bathrooms",
-    "num_showers": "Number of showers",
-    "num_toilets": "Number of toilets",
-    "heating_type": "Type of heating",
-    "glazing_type": "Type of glazing",
-    "elevator": "Elevator",
-    "num_facades": "Number of facades",
-    "num_floors": "Number of floors",
-    "orientation": "Orientation of the front facade",
-    "garden": "Garden",
-    "garage": "Garage",
-    "terrace": "Terrace",
-    "terrace_orientation": "Terrace orientation",
-    "sewer_connection": "Sewer Connection",
-    "gas": "Gas",
-    "running_water": "Running water",
-    "balcony": "Balcony",
-    "land_surface": "Total land surface",
-    "primary_energy_consumption": "Specific primary energy consumption",
-    "epc_peb_reference": "EPC/PEB reference",
-    "planning_permission_granted": "Planning permission granted",
-    "g_score": "G-score",
-    "p_score": "P-score",
-    "swimming_pool": "Swimming pool",
-    "cellar": "Cellar",
-    "veranda": "Veranda",
-    "dining_room": "Dining room",
-    "attic": "Attic",
-    "co2_emission": "CO2 emission",
-    "cert_electrical_installation": "Certification - Electrical installation",
-    "epc_validity_date": "Validity date EPC/PEB",
-    "peb_category": "PEB category",
-}
- 
-def clean_text(text: str) -> str:
-  """Clean the extracted text by removing extra whitespace and special characters.
-  Args:        
-    text (str): The text to clean.
-  Returns:     
-    str: The cleaned text.
-  """
-  # Remove references/citations
-  # Examples: [1], [12], [a], [citation needed]
-  text = re.sub(r"\[[^\]]*\]", "", text)
+#"property_id": None, "property_type": None, "province": None, "postal_code": None, "city_name": None, "address": None, "price": None, 
+FIELD_MAP = {"livable_surface": None, "total_surface": None, "bedroom_count": None, "build_year": None, "property_state": None,"peb_category": None, "garage": None, "terrace": None, "swimming_pool": None}
 
-  # Replace common HTML entities
-  text = html.unescape(text)
-
-  # Replace multiple spaces, tabs and line breaks with a single space
-  text = re.sub(r"\s+", " ", text)
-
-  # Remove spaces before punctuation marks
-  # Example: "hello ." -> "hello."
-  text = re.sub(r"\s+([.,;:!?])", r"\1", text)
-
-  return text.strip() 
+interests = Interests_parser()
 
 def parse_more_info(more_info: Tag | None) -> dict:
     """Extract the more info detail of each property from the HTML content.
@@ -85,27 +25,35 @@ def parse_more_info(more_info: Tag | None) -> dict:
     """
 
     if more_info is None:
-        return {
-            field: ""
-            for field in FIELD_MAP.keys()
-        }
+        return FIELD_MAP
     
+    field = FIELD_MAP.copy()
     more_info_titles = [h.text.replace("\n", "").strip() for h in more_info.find_all("h4")]
     more_info_contents = [p.text.replace("\n", "").strip() for p in more_info.find_all("p")]
     
-    raw_dict = dict(zip(more_info_titles, more_info_contents))
-    if len(more_info_titles) != len(more_info_contents):
-      logger.warning(
-        f"Mismatch titles={len(more_info_titles)} "
-        f"contents={len(more_info_contents)}"
-      )
+    for i, title in enumerate(more_info_titles):
+        match title:
+            case "State of the property":
+                field["property_state"] = more_info_contents[i]
+            case "Build Year":
+                field["build_year"] = int(more_info_contents[i])
+            case "Number of bedrooms":
+                field["bedroom_count"] = int(more_info_contents[i])
+            case "Livable surface":
+                field["livable_surface"] = int(more_info_contents[i].split()[0])
+            case "Total land surface":
+                field["total_surface"] = int(more_info_contents[i].split()[0])
+            case "Garage":
+                field["garage"] = 1 if more_info_contents[i] == "YES" else 0
+            case "Terrace":
+                field["terrace"] = 1 if more_info_contents[i] == "YES" else 0
+            case "Specific primary energy consumption":
+                field["peb_category"] = int(more_info_contents[i].split()[0])
+            case "Swimming pool":
+                field["swimming_pool"] = 1 if more_info_contents[i] == "YES" else 0
+            
 
-    cleaned_more_info = {
-        field_name: raw_dict.get(page_label, "")
-        for field_name, page_label in FIELD_MAP.items()
-    }
-
-    return cleaned_more_info
+    return field
 
 def parse_property(url: str, header: dict, province: str) -> dict:
     """Extract the data detail of each property from the HTML content.
@@ -139,20 +87,10 @@ def parse_property(url: str, header: dict, province: str) -> dict:
       return {}
     
     vlancode = page_header.find("span", class_="vlancode")
-    info["property_id"] = vlancode.get_text(strip=True) if vlancode else ""
+    if vlancode:
+        info["property_id"] = vlancode.get_text(strip=True) 
+    else: return {}
 
-    info['url'] = url
-
-    name_tag = page_header.find(
-      "span",
-      class_="detail__header_title_main"
-    )
-
-    info["name"] = (
-      name_tag.get_text(" ", strip=True).rsplit(" ", 1)[0]
-      if name_tag
-      else ""
-    )
 
     address_info = page_header.find(
         "div",
@@ -165,60 +103,46 @@ def parse_property(url: str, header: dict, province: str) -> dict:
       info["address"] = (
           spans[0].get_text(strip=True)
           if spans
-          else ""
+          else None
       )
       city_tag = address_info.find(
         "span",
         class_="city-line"
       )
-      city = city_tag.get_text(strip=True) if city_tag else ""
+      city = city_tag.get_text(strip=True) if city_tag else None
       parts = city.split(" ", 1)
-      info["postcode"] = parts[0] if len(parts) > 1 else ""
+      info["postcode"] = parts[0] if len(parts) > 1 else None
       info["city"] = parts[1] if len(parts) > 1 else parts[0]
     else:
-        info["address"] = ""
-        info["postcode"] = ""
-        info["city"] = ""
+        info["address"] = None
+        info["postcode"] = None
+        info["city"] = None
 
-    description_tag = content.find("div", class_="dynamic-description")
+    info["price"] = None
 
-    info["description"] = (
-        clean_text(description_tag.get_text(strip=True))
-        if description_tag
-        else ""
-    )
-
-    info["price"] = ""
-    info["cadastral_income"] = ""
     financial = content.select_one("div.financial")
     if financial:
       price_tag = financial.find("strong", string="Price")
       if price_tag:
           price_text = price_tag.parent.get_text(" ", strip=True)
-          info["price"] = re.sub(r"[^\d]", "", price_text)
+          info["price"] = int(re.sub(r"[^\d]", "", price_text))
 
-      cadastral_income_tag = financial.find("strong", string="Cadastral income")
-      if cadastral_income_tag:
-          cadastral_income_text = cadastral_income_tag.parent.get_text(" ", strip=True)
-          info["cadastral_income"] = re.sub(r"[^\d]", "", cadastral_income_text)
-
-    lat = ""
-    lng = ""
+    lat = None
+    lng = None
     scripts = soup.find_all("script")
     for script in scripts:
         if script.string and "AD_LATITUDE" in script.string:
-          text = script.string
-          lat_match = re.search(r"AD_LATITUDE\s*=\s*'([^']+)'", text)
-          lng_match = re.search(r"AD_LONGITUDE\s*=\s*'([^']+)'", text)
-          lat = lat_match.group(1) if lat_match else None
-          lng = lng_match.group(1) if lng_match else None
-          break
+            text = [part.split(" = ")for part in script.string.split(";")]
+            lat = float(text[1][1][1:-1])
+            lng = float(text[0][1][1:-1])
+            break
 
     info["latitude"] = lat
     info["longitude"] = lng
 
     more_info = content.find("div", class_="general-info-wrapper")
     info.update(parse_more_info(more_info))
+    info.update(interests.parsing(soup))
 
     return info
 
@@ -232,3 +156,14 @@ def to_json_file(data: dict, filepath: str) -> None:
   """
   with open(filepath, "w", encoding="utf-8") as f:
     json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+if __name__ == "__main__": 
+  user_a = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
+  url = "https://immovlan.be/en/detail/studio/for-sale/1190/vorst/vbe35475"
+  data = parse_property(url, {
+          "User-Agent": user_a,
+          "Accept-Language": "en-US,en;q=0.9"
+        }, "brussels")
+  
+  to_json_file(data, "data.json")

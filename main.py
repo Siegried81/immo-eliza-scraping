@@ -1,8 +1,9 @@
+from fake_useragent import UserAgent   
 
-import os
+from src import parse_property, to_json_file, run
 import json
-from src import parse_property, to_json_file
 import logging
+import os
 import time
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -20,21 +21,19 @@ def main():
   # ---------------------------------------
   # Get project base directory
   base_dir = os.path.dirname(__file__)
-  config_filepath = os.path.join(base_dir, "config.json")
-  output_filepath = os.path.join(base_dir, "belgium_properties.json")
-  with open(config_filepath, "r", encoding="utf-8") as f:
-    config = json.load(f)
 
+  output_filepath = os.path.join(base_dir, "belgium_properties.json")
+
+  user_agent = UserAgent()
+
+  logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+  logger = logging.getLogger(__name__)
   # ---------------------------------------
   # 1. Get Urls
   # ---------------------------------------
   logger.info("Fetching urls...")
-  # Example:
-  # urls = ["https://immovlan.be/en/detail/residence/for-sale/9600/ronse/rbw18859",
-  #         "https://immovlan.be/en/detail/penthouse/for-sale/2500/lier/rbw20388", 
-  #         "https://immovlan.be/en/detail/duplex/for-sale/1070/anderlecht/vbe34263"
-  #       ]
 
+  """
   urls = {
     "anvers": ["https://immovlan.be/en/detail/residence/for-sale/9600/ronse/rbw18859",
       "https://immovlan.be/en/detail/penthouse/for-sale/2500/lier/rbw20388", 
@@ -52,10 +51,33 @@ def main():
     "namur": [],
     "brabant-wallon": [],
   }
+  """
+  urls = {"antwerp": [],
+    "limburg": [], 
+    "east-flanders": [],
+    "vlaams-brabant": [], 
+    "west-flanders": [],
+    "brussels": [], 
+    "hainaut": [], 
+    "liege": [],
+    "luxembourg": [], 
+    "namur": [],
+    "brabant-wallon": []}
+
+  start_time = time.perf_counter()
+  with open("src/url_by_province.csv") as csv:
+    lines = csv.read().strip().split("\n")[1:]
+    for line in lines:
+      #print(line)
+      region, province, url = line.split(";")
+      urls[province].append(url)
+
+  logger.info(f"Time spent : {time.perf_counter() - start_time} seconds.")
 
   # =========================
   # 2. SCRAPE PROPERTY DETAILS
   # =========================
+  start_time = time.perf_counter()
   dataset = []
   data_json = {
     "anvers": {},
@@ -75,10 +97,7 @@ def main():
   for province, url_list in urls.items():
     for url in url_list:
       try:
-        data = parse_property(url, {
-          "User-Agent": config["user_agent"],
-          "Accept-Language": config["accept_language"]
-        }, province)
+        data = parse_property(url, {"User-Agent": user_agent.random}, province)
 
         if data["property_id"] not in property_ids:
           property_ids.append(data["property_id"])
@@ -86,10 +105,10 @@ def main():
           if data["postcode"] not in data_json[province]:
             data_json[province][data["postcode"]] = []
           data_json[province][data["postcode"]].append(data)
-        time.sleep(0.5)  # prevent blocking
+        time.sleep(0.2)  # prevent blocking
       except:
         continue
-
+  logger.info(f"Time spent : {time.perf_counter() - start_time} seconds.")
   # ---------------------------------------
   # 3. Save properties data to JSON file
   # ---------------------------------------
