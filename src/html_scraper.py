@@ -140,19 +140,6 @@ def parse_property(url: str, header: dict, province: str) -> dict:
     info["latitude"] = lat
     info["longitude"] = lng
 
-    property_type = None
-    for script in scripts:
-        if script.string and "propertyType:" in script.string:
-            property_type = script.string.split("propertyType:", 1)[1].split(",", 1)[0].strip().strip("'\"")
-            break
-
-    if property_type in ["Apartment", "Appartment"]:
-        property_type = "apartment"
-    elif property_type == "House":
-        property_type = "house"
-
-    info["property_type"] = property_type
-
     more_info = content.find("div", class_="general-info-wrapper")
     info.update(parse_more_info(more_info))
     info.update(interests.parsing(soup))
@@ -173,11 +160,10 @@ def to_json_file(data: dict, filepath: str) -> None:
 
 if __name__ == "__main__": 
   user_a = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
-  url = "https://immovlan.be/en/detail/residence/for-sale/6120/nalinnes/vbe34060"
+  url = "https://immovlan.be/en/detail/studio/for-sale/1190/vorst/vbe35475"
   data = parse_property(url, {
           "User-Agent": user_a,
           "Accept-Language": "en-US,en;q=0.9"
         }, "brussels")
   
-  to_json_file(data, "data.json")
-  #to_json_file(data, "../data/data.json")
+  to_json_file(data, "../data/data.json")
