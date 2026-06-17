@@ -9,6 +9,7 @@ import csv
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+
 def main():
   """
   Main entry point of the seating application.
@@ -111,6 +112,7 @@ def main():
   # =========================
   # 2. SCRAPE PROPERTY DETAILS
   # =========================
+
   if start_scraping:
     start_time = time.perf_counter()
     logger.info(f"Time spent : {time.perf_counter() - start_time} seconds.")
@@ -151,10 +153,12 @@ def main():
     # ---------------------------------------
     logger.info(f"Saving data to {output_filepath}...")
     to_json_file(data_json, output_filepath)
+  else:
+    dataset = []
+  final_df = pd.DataFrame(dataset)
+  output_dataframe_filepath = os.path.join(base_dir, "./data/dataframe.json")
+  final_df.to_json(output_dataframe_filepath, orient="records", force_ascii=False, indent=4)
 
-    final_df = pd.DataFrame(dataset)
-
-    final_df.to_json("../data/dataframe.json", orient="records", force_ascii=False, indent=4)
 
 # ---------------------------------------
 # Program entry point
