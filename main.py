@@ -1,5 +1,5 @@
 from fake_useragent import UserAgent   
-from src import parse_property, to_json_file
+from src import parse_property, to_json_file, fetch_urls
 import logging
 import os
 import time
@@ -34,7 +34,7 @@ def main():
   print("1. Use previously scraped URLs")
   print("2. Scrape URLs again")
 
-  use_existing_urls = True
+  use_existing_urls = False
   if os.path.exists(url_by_province_filepath):
     while True:
       choice_url_mode = input("Choose an option: ")
@@ -68,58 +68,85 @@ def main():
     "namur": [],
     "brabant-wallon": []}
   
+  total_urls = 0
   if use_existing_urls:
     with open(url_by_province_filepath, "r", encoding="utf-8") as f:
-      reader = csv.DictReader(f, delimiter=";")
+        reader = csv.DictReader(f, delimiter=";")
 
-      for row in reader:
-          province = row["province"].strip().lower()
-          url = row["url"].strip()
+        for row in reader:
+            province = row.get("province", "").strip().lower()
+            url = row.get("url", "").strip()
 
-          if province in urls and url.startswith("http"):
-              urls[province].append(url)
+            if province in urls and url.startswith("http"):
+                urls[province].append(url)
+                total_urls += 1
+  else:
+    total_urls = fetch_urls(url_by_province_filepath)
+
+  print("\n=== URL Source Loaded ===")
+  print(f"Total URLs: {total_urls}")
+
+  print("\nDo you want to continue scraping details?")
+  print("1. Yes")
+  print("2. No (exit)")
+  start_scraping = False
+  while True:
+    choice = input("Choose 1 or 2: ").strip()
+
+    if choice == "1":
+        start_scraping = True
+        break
+
+    elif choice == "2":
+        start_scraping = False
+        break
+
+    else:
+        logger.info("Options are 1 or 2. Please choose again.")
 
   # =========================
   # 2. SCRAPE PROPERTY DETAILS
   # =========================
-  start_time = time.perf_counter()
-  logger.info(f"Time spent : {time.perf_counter() - start_time} seconds.")
-  dataset = []
-  data_json = {
-    "anvers": {},
-    "limbourg": {},
-    "flandre-orientale": {},
-    "brabant-flamand": {},
-    "flandre-occidentale": {},
-    "bruxelles": {},
-    "hainaut": {},
-    "liege": {},
-    "luxembourg": {},
-    "namur": {},
-    "brabant-wallon": {},
-  }
-  property_ids = []
+  if start_scraping:
+    start_time = time.perf_counter()
+    logger.info(f"Time spent : {time.perf_counter() - start_time} seconds.")
+    dataset = []
+    data_json = {
+      "anvers": {},
+      "limbourg": {},
+      "flandre-orientale": {},
+      "brabant-flamand": {},
+      "flandre-occidentale": {},
+      "bruxelles": {},
+      "hainaut": {},
+      "liege": {},
+      "luxembourg": {},
+      "namur": {},
+      "brabant-wallon": {},
+    }
+    property_ids = []
 
-  for province, url_list in urls.items():
-    for url in url_list:
-      try:
-        data = parse_property(url, {"User-Agent": user_agent.random}, province)
+    for province, url_list in urls.items():
+      for url in url_list:
+        try:
+          data = parse_property(url, {"User-Agent": user_agent.random}, province)
 
-        if data["property_id"] not in property_ids:
-          property_ids.append(data["property_id"])
-          dataset.append(data)
-          if data["postcode"] not in data_json[province]:
-            data_json[province][data["postcode"]] = []
-          data_json[province][data["postcode"]].append(data)
-        time.sleep(0.2)  # prevent blocking
-      except:
-        continue
-  logger.info(f"Time spent : {time.perf_counter() - start_time} seconds.")
-  # ---------------------------------------
-  # 3. Save properties data to JSON file
-  # ---------------------------------------
-  logger.info(f"Saving data to {output_filepath}...")
-  to_json_file(data_json, output_filepath)
+          if data["property_id"] not in property_ids:
+            property_ids.append(data["property_id"])
+            dataset.append(data)
+            if data["postcode"] not in data_json[province]:
+              data_json[province][data["postcode"]] = []
+            data_json[province][data["postcode"]].append(data)
+          time.sleep(0.2)  # prevent blocking
+        except:
+          continue
+    logger.info(f"Time spent : {time.perf_counter() - start_time} seconds.")
+
+    # ---------------------------------------
+    # 3. Save properties data to JSON file
+    # ---------------------------------------
+    logger.info(f"Saving data to {output_filepath}...")
+    to_json_file(data_json, output_filepath)
 
 # ---------------------------------------
 # Program entry point

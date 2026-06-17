@@ -71,9 +71,8 @@ def fetch_data(region_slug, province_slug, region_name, min_p, max_p, session):
             
     return results
 
-def run():
-    all_data = []
-                                                  # list of tasks for each province in the hierarchy
+def fetch_urls(filepath):
+    all_data = [] # list of tasks for each province in the hierarchy
     tasks = [(reg, prov, data["name"], p[0], p[1]) for reg, data in GEO_DATA.items() for prov in data["provinces"] for p in PRICE_RANGES]
     
     try:                                             
@@ -82,19 +81,20 @@ def run():
                 futures = [executor.submit(fetch_data, *task, session) for task in tasks]
                 for future in futures:  
                     all_data.extend(future.result())
-    except KeyboardInterrupt:
-                                                  # catch the ctrl+C
+    except KeyboardInterrupt: # catch the ctrl+C
         #print("Keyboard interruption.")
         logger.info("Keyboard interruption.")
 
     df = pd.DataFrame(all_data)                   # convert list of dic into DF
     df = df.drop_duplicates(subset=["url"])
 
-    df.to_csv("../data/url_by_province.csv", index=False, sep=";", encoding="utf-8-sig")
+    df.to_csv(filepath, index=False, sep=";", encoding="utf-8-sig")
  
     print(f"Total unique URLs: {len(df)}")
+    return len(df)
 
 if __name__ == "__main__": 
     start_time = time.perf_counter()
-    run()
+    filepath = "../data/url_by_province.csv"
+    fetch_urls(filepath)
     print(f"Time spent : {time.perf_counter() - start_time} seconds.")
