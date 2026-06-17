@@ -2,6 +2,7 @@ from fake_useragent import UserAgent
 from src import parse_property, to_json_file, fetch_urls
 import logging
 import os
+import pandas as pd
 import time
 import csv
 
@@ -150,6 +151,10 @@ def main():
     # ---------------------------------------
     logger.info(f"Saving data to {output_filepath}...")
     to_json_file(data_json, output_filepath)
+
+    final_df = pd.DataFrame(dataset)
+
+    final_df.to_json("../data/dataframe.json", orient="records", force_ascii=False, indent=4)
 
 # ---------------------------------------
 # Program entry point

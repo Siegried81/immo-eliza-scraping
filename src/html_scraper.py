@@ -1,6 +1,6 @@
 from bs4 import BeautifulSoup
 from bs4.element import Tag
-from points_of_interest import Interests_parser
+from src.points_of_interest import Interests_parser
 import html
 import json
 import logging
@@ -65,7 +65,7 @@ def parse_property(url: str, header: dict, province: str) -> dict:
     if not url:
       return {}
     
-    logger.info(f"Processing data from {url}...")
+    logger.info(f"Processing property in {province} from {url}...")
     try:
       r = requests.get(url, headers=header, timeout=20)
       r.raise_for_status()

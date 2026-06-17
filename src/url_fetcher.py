@@ -1,7 +1,8 @@
 from bs4 import BeautifulSoup                     
 from concurrent.futures import ThreadPoolExecutor 
 from fake_useragent import UserAgent   
-import logging                             
+from src.points_of_interest import Interests_parser    
+import logging                         
 import pandas as pd      
 import requests                                   
 import time                                       
