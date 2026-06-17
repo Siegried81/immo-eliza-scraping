@@ -65,7 +65,7 @@ def fetch_data(region_slug, province_slug, region_name, min_p, max_p):
             
     return results
 
-def run():
+def run_url_threads():
     all_data = []
                                                   # list of tasks for each province in the hierarchy
     tasks = [(reg, prov, data["name"], p[0], p[1]) for reg, data in GEO_DATA.items() for prov in data["provinces"] for p in PRICE_RANGES]
@@ -87,4 +87,4 @@ def run():
     print(f"Total unique URLs: {len(df)}")
 
 if __name__ == "__main__": 
-    run()
+    run_url_threads()
