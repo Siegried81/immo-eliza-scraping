@@ -1,20 +1,55 @@
 from bs4 import BeautifulSoup
 from bs4.element import Tag
-from src.points_of_interest import Interests_parser
-import html
+from points_of_interest import Interests_parser
 import json
 import logging
-import pandas as pd
 import re
 import requests
+from requests import RequestException
+import os
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-#"property_id": None, "property_type": None, "province": None, "postal_code": None, "city_name": None, "address": None, "price": None, 
-FIELD_MAP = {"livable_surface": None, "total_surface": None, "bedroom_count": None, "build_year": None, "property_state": None,"peb_category": None, "garage": None, "terrace": None, "swimming_pool": None}
+FIELD_MAP = {
+  "property_state": None,
+  "build_year": None, 
+  "bedroom_count": None, 
+  "livable_surface": None, 
+  "total_surface": None, 
+  "garage": None, 
+  "terrace": None, 
+  "peb_category": None, 
+  "swimming_pool": None
+}
 
 interests = Interests_parser()
+
+def safe_int(value: str) -> int | None:
+    """
+    Extract first integer from a messy string.
+
+    Examples:
+        "1998" → 1998
+        "125 m²" → 125
+        "1,200 EUR" → 1200
+        "Unknown" → None
+        "" → None
+    """
+    if not value:
+        return None
+
+    value = value.replace(",", "")
+    match = re.search(r"\d+", value)
+    return int(match.group()) if match else None
+
+def parse_bool(value: str) -> int:
+  """
+    Parse string boolean-like value:
+    "YES" (case-insensitive, trimmed) -> 1
+    any other value -> 0
+  """
+  return 1 if value.strip().upper() == "YES" else 0
 
 def parse_more_info(more_info: Tag | None) -> dict:
     """Extract the more info detail of each property from the HTML content.
@@ -28,34 +63,33 @@ def parse_more_info(more_info: Tag | None) -> dict:
         return FIELD_MAP
     
     field = FIELD_MAP.copy()
-    more_info_titles = [h.text.replace("\n", "").strip() for h in more_info.find_all("h4")]
-    more_info_contents = [p.text.replace("\n", "").strip() for p in more_info.find_all("p")]
+    titles = [h.text.replace("\n", "").strip() for h in more_info.find_all("h4")]
+    contents = [p.text.replace("\n", "").strip() for p in more_info.find_all("p")]
     
-    for i, title in enumerate(more_info_titles):
+    for title, content in zip(titles, contents):
         match title:
             case "State of the property":
-                field["property_state"] = more_info_contents[i]
+                field["property_state"] = content
             case "Build Year":
-                field["build_year"] = int(more_info_contents[i])
+                field["build_year"] = safe_int(content)
             case "Number of bedrooms":
-                field["bedroom_count"] = int(more_info_contents[i])
+                field["bedroom_count"] = safe_int(content)
             case "Livable surface":
-                field["livable_surface"] = int(more_info_contents[i].split()[0])
+                field["livable_surface"] = safe_int(content)
             case "Total land surface":
-                field["total_surface"] = int(more_info_contents[i].split()[0])
+                field["total_surface"] = safe_int(content)
             case "Garage":
-                field["garage"] = 1 if more_info_contents[i] == "YES" else 0
+                field["garage"] = parse_bool(content)
             case "Terrace":
-                field["terrace"] = 1 if more_info_contents[i] == "YES" else 0
+                field["terrace"] = parse_bool(content)
             case "Specific primary energy consumption":
-                field["peb_category"] = int(more_info_contents[i].split()[0])
+                field["peb_category"] =  safe_int(content)
             case "Swimming pool":
-                field["swimming_pool"] = 1 if more_info_contents[i] == "YES" else 0
+                field["swimming_pool"] = parse_bool(content)
             
-
     return field
 
-def parse_property(url: str, header: dict, province: str) -> dict:
+def parse_property(url: str, session: requests.Session, province: str) -> dict:
     """Extract the data detail of each property from the HTML content.
     Args:        
       url (str): The url link to the property.
@@ -67,10 +101,12 @@ def parse_property(url: str, header: dict, province: str) -> dict:
     
     logger.info(f"Processing property in {province} from {url}...")
     try:
-      r = requests.get(url, headers=header, timeout=20)
+      r = session.get(url,timeout=20)
       r.raise_for_status()
-    except requests.RequestException as e:
-      logger.error(e)
+    except RequestException as e:
+      logger.exception(
+        "Failed to fetch property"
+      )
       return {}
     
     soup = BeautifulSoup(r.text, "lxml")
@@ -89,7 +125,9 @@ def parse_property(url: str, header: dict, province: str) -> dict:
     vlancode = page_header.find("span", class_="vlancode")
     if vlancode:
         info["property_id"] = vlancode.get_text(strip=True) 
-    else: return {}
+    else: 
+      logger.error("vlancode not found")
+      return {}
 
 
     address_info = page_header.find(
@@ -109,7 +147,7 @@ def parse_property(url: str, header: dict, province: str) -> dict:
         "span",
         class_="city-line"
       )
-      city = city_tag.get_text(strip=True) if city_tag else None
+      city = city_tag.get_text(strip=True) if city_tag else ""
       parts = city.split(" ", 1)
       info["postcode"] = parts[0] if len(parts) > 1 else None
       info["city"] = parts[1] if len(parts) > 1 else parts[0]
@@ -125,7 +163,8 @@ def parse_property(url: str, header: dict, province: str) -> dict:
       price_tag = financial.find("strong", string="Price")
       if price_tag:
           price_text = price_tag.parent.get_text(" ", strip=True)
-          info["price"] = int(re.sub(r"[^\d]", "", price_text))
+          price_digits = re.sub(r"[^\d]", "", price_text)
+          info["price"] = int(price_digits) if price_digits else None
 
     lat = None
     lng = None
@@ -174,10 +213,11 @@ def to_json_file(data: dict, filepath: str) -> None:
 if __name__ == "__main__": 
   user_a = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
   url = "https://immovlan.be/en/detail/residence/for-sale/6120/nalinnes/vbe34060"
-  data = parse_property(url, {
-          "User-Agent": user_a,
-          "Accept-Language": "en-US,en;q=0.9"
-        }, "brussels")
   
-  
-  to_json_file(data, "../data/data.json")
+  session = requests.Session()
+  session.headers.update({
+    "User-Agent": user_a,
+    "Accept-Language": "en-US,en;q=0.9"
+  })
+  data = parse_property(url, session, "brussels")
+  to_json_file(data, "./data/data.json")

@@ -5,6 +5,7 @@ import os
 import pandas as pd
 import time
 import csv
+import requests
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -132,10 +133,12 @@ def main():
     }
     property_ids = []
 
+    session = requests.Session()
     for province, url_list in urls.items():
       for url in url_list:
         try:
-          data = parse_property(url, {"User-Agent": user_agent.random}, province)
+          session.headers.update({"User-Agent": user_agent.random})
+          data = parse_property(url, session, province)
 
           if data["property_id"] not in property_ids:
             property_ids.append(data["property_id"])
