@@ -28,7 +28,7 @@ GEO_DATA = {
     "wallonie": {"name": "Wallonie", "provinces": ["hainaut", "liege", "luxembourg", "namur", "brabant-wallon"]}
 }
 
-MAX_PAGES = 2
+MAX_PAGES = 50
 MAX_WORKERS = 10                                  # max nb of threads running simultaneously
 
 def extract_links(html):
