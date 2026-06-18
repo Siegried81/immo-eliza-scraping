@@ -340,24 +340,6 @@ newdev/
 <img width="2072" height="987" alt="timeline" src="https://github.com/user-attachments/assets/a93531e6-4172-4255-9a4d-932cbce9313d" />
 
 
-
-## Teacher Requirements Coverage
-
-| Requirement | Current status |
-| --- | --- |
-| Properties across Belgium | Covered through province-based URL collection |
-| Minimum 10,000 data points | Targeted, still needs final dataset validation |
-| Missing values encoded as `None` | Implemented in parser defaults |
-| Numerical values where possible | Implemented for price, surfaces, bedroom count, coordinates, boolean fields |
-| No duplicates | Checked by `property_id` in `main.py` |
-| Clear contribution | Documented in this README |
-| Threading / performance | Implemented in URL collection |
-| Session persistence | Used in URL collection |
-| User-Agent rotation | Used through `fake_useragent` |
-| Hidden API exploration | Explored during development; main pipeline currently uses HTML parsing because detail data is richer there |
-| Coordinates capture | Implemented from script data |
-| Secondary source | Zimmo scraper/parser draft exists |
-
 ## Emission in CO2
 0.00027 kg CO2eq, which is 0.27 grams of CO2.
 
