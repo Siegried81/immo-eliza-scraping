@@ -4,6 +4,9 @@ import math
 # ---------------------------------------
 # MAJOR CITIES
 # ---------------------------------------
+"""Dictionary containing geographical coordinates (latitude, longitude) 
+   for major Belgian cities to serve as reference points."""
+
 CITIES = {
     "Antwerp": (51.2194, 4.4025),
     "Brussels": (50.8467, 4.3499),
@@ -19,6 +22,9 @@ CITIES = {
 # ---------------------------------------
 # HAVERSINE
 # ---------------------------------------
+"""Calculates the great-circle distance between two points on a sphere 
+   given their longitudes and latitudes in kilometers."""
+
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371.0088
 
@@ -36,6 +42,10 @@ def haversine(lat1, lon1, lat2, lon2):
 
 
 def nearest_city(lat, lon):
+    """
+    Iterates through the cities dictionary to find the city closest to 
+    the provided coordinates and returns its name and distance.
+    """
     best_city = None
     best_dist = float("inf")
 

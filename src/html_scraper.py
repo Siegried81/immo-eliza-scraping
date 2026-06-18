@@ -12,6 +12,9 @@ import os
 import sys
 
 # --- Setup Logger 1: The Scraper Tracker ---
+""" Initializes two separate logging systems: one for detailed scraping 
+    tracking (file-based) and one for real-time terminal error monitoring."""
+
 file_logger = logging.getLogger('scraper')
 file_logger.setLevel(logging.INFO)
 
@@ -50,16 +53,10 @@ interests = Interests_parser()
 counter = 0
 
 def safe_int(value: str) -> int | None:
-    """
-    Extract first integer from a messy string.
+    """ Helper functions to sanitize and convert raw HTML/JS data into 
+    clean, structured Python types like integers, booleans, and dictionaries.
+    Extract first integer from a messy string ("125 m²" → 125, "1,200 EUR" → 1200, "Unknown" & "" → None """
 
-    Examples:
-        "1998" → 1998
-        "125 m²" → 125
-        "1,200 EUR" → 1200
-        "Unknown" → None
-        "" → None
-    """
     if not value:
         return None
 
@@ -102,12 +99,11 @@ def js_to_json(text):
                     return None
 
 def parse_more_info(more_info: Tag | None) -> dict:
-    """Extract the more info detail of each property from the HTML content.
-    Args:        
-      html (str): The HTML content to parse.
-    Returns:     
-      dict | {}: data detail of each property or an empty dict if url not found.   
-    """
+
+    """Extracts specific property details from the HTML content (e.g., surface area, amenities, 
+        energy rating) from the HTML content by mapping element headers to defined fields.
+        Returns:     
+        dict | {}: data detail of each property or an empty dict if url not found."""
 
     if more_info is None:
         return FIELD_MAP
@@ -140,12 +136,10 @@ def parse_more_info(more_info: Tag | None) -> dict:
     return field
 
 def parse_property(url: str, header: dict, province: str, session: requests.Session) -> dict:
-    """Extract the data detail of each property from the HTML content.
-    Args:        
-      url (str): The url link to the property.
-    Returns:     
-      dict | {}: data detail of each property or an empty dict if url not found.   
-    """
+    """ Orchestrates the scraping of a single property page. It extracts metadata 
+    from embedded JS, normalizes data, and calculates geographical proximity 
+    to major cities using the nearest_city module."""
+    
     global counter 
     counter += 1
     if not url:
@@ -259,13 +253,10 @@ def parse_property(url: str, header: dict, province: str, session: requests.Sess
     return info
 
 def to_json_file(data: dict, filepath: str) -> None:
-  """Save the data to a JSON file.
-  Args:        
-    data (dict): The data to save.
-    filename (str): The name of the file to save to.
-  Returns:     
-    None
-  """
+  
+  """Serializes the processed dictionary data into a structured JSON file 
+    with UTF-8 encoding for permanent storage."""
+  
   with open(filepath, "w", encoding="utf-8") as f:
     json.dump(data, f, ensure_ascii=False, indent=2)
 
