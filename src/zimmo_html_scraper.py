@@ -4,7 +4,6 @@ import csv
 import logging
 import os
 import time
-import random
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from fake_useragent import UserAgent   
@@ -45,20 +44,6 @@ Provinces_map = {
     "Leuze_en_Hainaut": "Hainaut", "Arlon_Luxembourg": "Luxembourg", "Wavre_brabant_wallon": "Brabant-Wallon",
 }
 
-Search_urls = {
-    "bruxelles": "https://www.zimmo.be/fr/bruxelles/a-vendre/",
-    "anvers": "https://www.zimmo.be/fr/anvers/a-vendre/",
-    "limbourg": "https://www.zimmo.be/fr/limbourg/a-vendre/",
-    "flandre-orientale": "https://www.zimmo.be/fr/flandre-orientale/a-vendre/",
-    "flandre-occidentale": "https://www.zimmo.be/fr/flandre-occidentale/a-vendre/",
-    "brabant-flamand": "https://www.zimmo.be/fr/brabant-flamand/a-vendre/",
-    "liege": "https://www.zimmo.be/fr/liege/a-vendre/",
-    "namur": "https://www.zimmo.be/fr/namur/a-vendre/",
-    "hainaut": "https://www.zimmo.be/fr/hainaut/a-vendre/",
-    "luxembourg": "https://www.zimmo.be/fr/luxembourg/a-vendre/",
-    "brabant-wallon": "https://www.zimmo.be/fr/brabant-wallon/a-vendre/",
-}
-
 Csv_file = "zimmo_parser_optimized.csv"
 Max_workers = 25
 
@@ -69,12 +54,12 @@ Session.mount('http://', adapter)
 
 user_agent = UserAgent()
 counter = 0
-# Core functions
+
 def fetch_soup(url):
     try:
-        r = Session.get(url, headers={"User-Agent": user_agent.random}, timeout=10)               # Request the URL
-        return bs4.BeautifulSoup(r.text, "html.parser") if r.status_code == 200 else None # Return parser
-    except: return None                                                 # Return None on error
+        r = Session.get(url, headers={"User-Agent": user_agent.random}, timeout=10)               
+        return bs4.BeautifulSoup(r.text, "html.parser") if r.status_code == 200 else None 
+    except: return None                                                 
 
 def parse_float(value):
     value = value.replace(".", "")
@@ -92,8 +77,8 @@ def parse_property(url, geo, prov):
     soup = fetch_soup(url)
     if not soup: return None
     try:
-        property_id = soup.find("div", attrs={"class": "zimmo-code"}).text.split(": ")[1][:-1] # find prop ID
-        details = soup.find("section", attrs={"id": "main-features"})   # find features section
+        property_id = soup.find("div", attrs={"class": "zimmo-code"}).text.split(": ")[1][:-1] 
+        details = soup.find("section", attrs={"id": "main-features"})   
         if not details: return None
         
         data = {
@@ -103,13 +88,13 @@ def parse_property(url, geo, prov):
             "bedroom_count": None, "build_year": None, "peb_category": None, "garage": None
         }
         
-        for li in details.find_all("li"):                               # iterate through features
+        for li in details.find_all("li"):                               
             cat = li.find("strong").text if li.find("strong") else None
             value = li.find("span").text.strip() if li.find("span") else ""
-            match cat:                                                  # match feature type
+            match cat:                                                  
                 case "Prix": data["price"] = parse_float(value)
                 case "Adresse":
-                    address, rest = value.split(", ")                   # split address components
+                    address, rest = value.split(", ")                   
                     data["address"] = address
                     data["postal_code"], data["city_name"] = rest.split(maxsplit=1)
                 case "Type": data["property_type"] = "House" if "Maison" in value else "Appartment"
@@ -121,16 +106,15 @@ def parse_property(url, geo, prov):
                     parts = value.split()
                     data["peb_category"] = int(parts[0]) if parts[0].isdigit() else None
         
-        if not data["total_surface"]: data["total_surface"] = data["livable_surface"] # init defaults
+        if not data["total_surface"]: data["total_surface"] = data["livable_surface"] 
         
         garages_div = soup.find("div", attrs={"class":"col-xs-7 info-name"}, string="Garages") 
         data["garage"] = 1 if (garages_div and garages_div.find_next_sibling("div").get_text(strip=True) != "0") else 0
         return data
-    except Exception as e:                                              # handle parsing errors
+    except Exception as e:                                              
         file_logger.error(e)
         return None
 
-# Scrape engine
 def html_scraper_zimmo(input_file):
 
     all_links_to_scrape = []
@@ -141,13 +125,13 @@ def html_scraper_zimmo(input_file):
     
     all_properties = []
     start_time = time.perf_counter()
-    with ThreadPoolExecutor(max_workers=Max_workers) as executor:       # Parallel parsing
+    with ThreadPoolExecutor(max_workers=Max_workers) as executor:       
         futures = [executor.submit(parse_property, l, g, p) for l, g, p in all_links_to_scrape]
         for f in as_completed(futures):
             res = f.result()
             if res: all_properties.append(res)
 
-    all_properties.sort(key=lambda x: (x["region"], x["province"]))     # Sorting logic
+    all_properties.sort(key=lambda x: (x["region"], x["province"]))     
     print(f"Time spent : {time.perf_counter() - start_time} s")
     return all_properties
 
@@ -155,7 +139,7 @@ def html_scraper_zimmo(input_file):
 def to_csv(Csv_file, all_properties):
     keys = ["region", "province", "property_id", "property_type", "postal_code", "city_name", 
             "address", "price", "bedroom_count", "livable_surface", "total_surface", "build_year", "garage", "peb_category"]
-    with open(Csv_file, "w", newline="", encoding="utf-8") as f:        # File output
+    with open(Csv_file, "w", newline="", encoding="utf-8") as f:       
         writer = csv.DictWriter(f, fieldnames=keys, delimiter=";")
         writer.writeheader()
         writer.writerows(all_properties)
@@ -163,4 +147,4 @@ def to_csv(Csv_file, all_properties):
     
 
 if __name__ == "__main__":
-    html_scraper_zimmo()
+    pass

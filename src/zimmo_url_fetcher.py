@@ -1,18 +1,13 @@
-# Second scrapper Zimmo, goal scrapping url for then another program to take the urls.
-# Each province will be equal to a list of link/url that have been scrapped from search url for each region.
-# Usually link come in 2 part the url that have all the info encoded in it like the province etc, then at the end "&p=N" N decide which page to load as they be many page exemple:
-# https://www.zimmo.be/fr/rechercher/?search=...&p=10
 import csv
-import json
-import time
 import requests
-import urllib3
 import threading
+import time
+import urllib3
 
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin
-from fake_useragent import UserAgent
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from fake_useragent import UserAgent
+from urllib.parse import urljoin
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -20,7 +15,7 @@ ua = UserAgent()
 
 OUTPUT_FILE = "province_zimmo_url.json"
 
-# I put one less page than the notes, because the last page can sometimes be empty.
+
 province_search_pages = {
     "Antwerpen": {"url": "https://www.zimmo.be/fr/rechercher/?search=...", "pages": 99},
     "Namur": {"url": "https://www.zimmo.be/fr/rechercher/?search=...", "pages": 10},
@@ -34,7 +29,7 @@ province_search_pages = {
     "East_Flanders_gent": {"url": "https://www.zimmo.be/fr/rechercher/?search=...", "pages": 54},
 }
 
-# global session shared by threads (faster than recreating connections)
+
 session = requests.Session()
 
 # lock to avoid race conditions when writing shared structures
@@ -83,7 +78,6 @@ def get_property_links_from_page(html):
 def scrape_province_links(province_name, search_url, total_pages):
     province_links = []
 
-    # each thread handles its own pages
     for page_number in range(1, total_pages + 1):
 
         page_url = make_page_url(search_url, page_number)
@@ -105,7 +99,7 @@ def scrape_province_links(province_name, search_url, total_pages):
         with lock:
             province_links.extend(page_links)
 
-        time.sleep(0.2)  # small delay to reduce ban risk
+        time.sleep(0.2) 
 
     # remove duplicates but keep order
     return province_name, list(dict.fromkeys(province_links))
@@ -134,20 +128,12 @@ def fetching_urls_zimmo(output_file):
 
             print(f"{province_name}: {len(links)} urls collected")
 
-    # save result
-    #with open(output_file, "w", encoding="utf-8") as file:
-    #   json.dump(all_province_links, file, ensure_ascii=False, indent=2)
-
     keys = ["province", "url"]
     print(f"saved to {output_file}")
-    with open(output_file, "w", newline="", encoding="utf-8") as f:        # File output
+    with open(output_file, "w", newline="", encoding="utf-8") as f:        
         writer = csv.DictWriter(f, fieldnames=keys, delimiter=";")
         writer.writeheader()
         writer.writerows(all_province_links)
 
-
 if __name__ == "__main__":
-    start_time = time.perf_counter()
-    print("here")
-    fetching_urls_zimmo("province_urls_zimmo.csv")
-    print(f"Time spend : {time.perf_counter() - start_time}")
+    pass
