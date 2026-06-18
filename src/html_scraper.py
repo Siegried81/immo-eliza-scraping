@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from src.points_of_interest import Interests_parser
+from src.nearest_cities import nearest_city
 import json
 import logging
 import re
@@ -254,6 +255,11 @@ def parse_property(url: str, header: dict, province: str, session: requests.Sess
         info.update(parse_more_info(more_info))
         info.update(interests.parsing(soup))
 
+    if info["latitude"] and info["longitude"]:
+        file_logger.info("Adding lat and long")
+        big_city, distance = nearest_city(info["latitude"], info["longitude"])
+        info["nearest_city"] = big_city
+        info["distance_nearest_city"] = distance
     return info
 
 def to_json_file(data: dict, filepath: str) -> None:
