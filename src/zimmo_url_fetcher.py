@@ -2,7 +2,7 @@
 # Each province will be equal to a list of link/url that have been scrapped from search url for each region.
 # Usually link come in 2 part the url that have all the info encoded in it like the province etc, then at the end "&p=N" N decide which page to load as they be many page exemple:
 # https://www.zimmo.be/fr/rechercher/?search=...&p=10
-
+import csv
 import json
 import time
 import requests
@@ -90,7 +90,7 @@ def scrape_province_links(province_name, search_url, total_pages):
         print(f"{province_name}: page {page_number}/{total_pages}")
 
         try:
-            response = session.get(page_url, headers=get_headers(), timeout=20, verify=False)
+            response = session.get(page_url, headers=get_headers(), timeout=10, verify=False)
         except requests.RequestException:
             print(f"failed page: {page_url}")
             continue
@@ -111,16 +111,16 @@ def scrape_province_links(province_name, search_url, total_pages):
     return province_name, list(dict.fromkeys(province_links))
 
 
-def run():
+def fetching_urls_zimmo(output_file):
 
-    all_province_links = {}
+    all_province_links = []
 
     # multithread per province (parallel scraping)
     def worker(item):
         province_name, info = item
         return scrape_province_links(province_name, info["url"], info["pages"])
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=10) as executor:
 
         futures = [
             executor.submit(worker, item)
@@ -129,16 +129,25 @@ def run():
 
         for future in as_completed(futures):
             province_name, links = future.result()
-
-            all_province_links[province_name] = links
+            for link in links:
+                all_province_links.append({"province": province_name, "url": link})
 
             print(f"{province_name}: {len(links)} urls collected")
 
     # save result
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as file:
-        json.dump(all_province_links, file, ensure_ascii=False, indent=2)
+    #with open(output_file, "w", encoding="utf-8") as file:
+    #   json.dump(all_province_links, file, ensure_ascii=False, indent=2)
 
-    print(f"saved to {OUTPUT_FILE}")
+    keys = ["province", "url"]
+    print(f"saved to {output_file}")
+    with open(output_file, "w", newline="", encoding="utf-8") as f:        # File output
+        writer = csv.DictWriter(f, fieldnames=keys, delimiter=";")
+        writer.writeheader()
+        writer.writerows(all_province_links)
 
 
-run()  _
+if __name__ == "__main__":
+    start_time = time.perf_counter()
+    print("here")
+    fetching_urls_zimmo("province_urls_zimmo.csv")
+    print(f"Time spend : {time.perf_counter() - start_time}")
