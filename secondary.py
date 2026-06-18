@@ -18,7 +18,9 @@ MAX_WORKERS = 25
 
 def main():
   """
-  
+  Main function
+  Scraping properties from zimmo.be
+  Outputs a csv file with links and a json file with the dataframe
   """
   # ---------------------------------------
   # Load configuration file
