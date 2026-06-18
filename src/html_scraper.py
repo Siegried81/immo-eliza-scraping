@@ -1,12 +1,12 @@
 from bs4 import BeautifulSoup
 from bs4.element import Tag
-from points_of_interest import Interests_parser
+from src.points_of_interest import Interests_parser
 import json
 import logging
 import re
 import requests
 from requests import RequestException
-import os
+from html import unescape
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -50,6 +50,33 @@ def parse_bool(value: str) -> int:
     any other value -> 0
   """
   return 1 if value.strip().upper() == "YES" else 0
+
+
+def js_to_json(text):
+    """
+      Extract first JS object from text safely
+    """
+    start = text.find("{")
+    if start == -1:
+        return None
+
+    depth = 0
+    for i in range(start, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                raw = text[start:i+1]
+
+                # convert JS object to JSON format
+                raw = re.sub(r'(\w+)\s*:', r'"\1":', raw)
+                raw = raw.replace("'", '"')
+
+                try:
+                    return json.loads(raw)
+                except:
+                    return None
 
 def parse_more_info(more_info: Tag | None) -> dict:
     """Extract the more info detail of each property from the HTML content.
@@ -97,104 +124,103 @@ def parse_property(url: str, session: requests.Session, province: str) -> dict:
       dict | {}: data detail of each property or an empty dict if url not found.   
     """
     if not url:
-      return {}
-    
+        return {}
+
     logger.info(f"Processing property in {province} from {url}...")
+
     try:
-      r = session.get(url,timeout=20)
-      r.raise_for_status()
-    except RequestException as e:
-      logger.exception(
-        "Failed to fetch property"
-      )
-      return {}
-    
+        r = session.get(url, timeout=20)
+        r.raise_for_status()
+    except RequestException:
+        logger.exception("Failed to fetch property")
+        return {}
+
     soup = BeautifulSoup(r.text, "lxml")
     info = {}
 
-    content = soup.find("div", id="main_content")
-    if not content:
-      logger.error("main_content not found")
-      return {}
-    
-    page_header = content.find("div", class_="detail__header_title")
-    if not page_header:
-      logger.error("detail__header_title not found")
-      return {}
-    
-    vlancode = page_header.find("span", class_="vlancode")
-    if vlancode:
-        info["property_id"] = vlancode.get_text(strip=True) 
-    else: 
-      logger.error("vlancode not found")
-      return {}
-
-
-    address_info = page_header.find(
-        "div",
-        class_="detail__header_address"
-    )
-
-    info["province"] = province
-    if address_info:
-      spans = address_info.find_all("span")
-      info["address"] = (
-          spans[0].get_text(strip=True)
-          if spans
-          else None
-      )
-      city_tag = address_info.find(
-        "span",
-        class_="city-line"
-      )
-      city = city_tag.get_text(strip=True) if city_tag else ""
-      parts = city.split(" ", 1)
-      info["postcode"] = parts[0] if len(parts) > 1 else None
-      info["city"] = parts[1] if len(parts) > 1 else parts[0]
-    else:
-        info["address"] = None
-        info["postcode"] = None
-        info["city"] = None
-
-    info["price"] = None
-
-    financial = content.select_one("div.financial")
-    if financial:
-      price_tag = financial.find("strong", string="Price")
-      if price_tag:
-          price_text = price_tag.parent.get_text(" ", strip=True)
-          price_digits = re.sub(r"[^\d]", "", price_text)
-          info["price"] = int(price_digits) if price_digits else None
-
-    lat = None
-    lng = None
     scripts = soup.find_all("script")
+
+    general_info = None
+    street_address = None
+    lat = lng = None
+
+    # =========================
+    # SINGLE PASS SCRIPT PARSE
+    # =========================
     for script in scripts:
-        if script.string and "AD_LATITUDE" in script.string:
-            text = [part.split(" = ")for part in script.string.split(";")]
-            lat = float(text[1][1][1:-1])
-            lng = float(text[0][1][1:-1])
+        if not script.string:
+            continue
+
+        text = script.string
+
+        # ---- GENERAL INFO ----
+        if general_info is None and "STORAGE_KEY_PROPERTY_DETAILS" in text:
+            try:
+                match = re.search(r"JSON\.stringify\((\{.*\})\)", text, re.DOTALL)
+                if match:
+                    general_info = js_to_json(match.group(1))
+            except Exception:
+                logger.error("General info parse error", exc_info=True)
+
+        # ---- ADDRESS (JSON-LD) ----
+        if street_address is None and "PostalAddress" in text:
+            try:
+                data = json.loads(text)
+                if isinstance(data, dict) and data.get("@type") == "PostalAddress":
+                    street_address = data.get("streetAddress")
+            except Exception:
+                pass
+
+        # ---- LAT/LNG ----
+        if lat is None and "AD_LATITUDE" in text:
+            try:
+                parts = [p.split(" = ") for p in text.split(";")]
+                lat = float(parts[1][1][1:-1])
+                lng = float(parts[0][1][1:-1])
+            except Exception:
+                pass
+
+        # early exit nếu đủ dữ liệu
+        if general_info and street_address and lat and lng:
             break
 
+    if not general_info:
+        logger.error("General info not found")
+        return {}
+
+    # =========================
+    # NORMALIZE DATA
+    # =========================
+
+    property_type_mapping = {1: "house", 2: "apartment"}
+
+    property_type_id = general_info.get("propertyTypeId")
+
+    info["property_type"] = property_type_mapping.get(property_type_id)
+    info["property_id"] = general_info.get("reference")
+    info["postcode"] = general_info.get("zipCode")
+    info["city"] = general_info.get("city")
+    info["province"] = province
+    info["address"] = unescape(street_address) if street_address else None
     info["latitude"] = lat
     info["longitude"] = lng
 
-    property_type = None
-    for script in scripts:
-        if script.string and "propertyType:" in script.string:
-            property_type = script.string.split("propertyType:", 1)[1].split(",", 1)[0].strip().strip("'\"")
-            break
+    price_raw = general_info.get("price")
+    info["price"] = (
+        int(float(price_raw.replace(" ", "").replace(".", "").replace(",", ".")))
+        if isinstance(price_raw, str) and price_raw.strip()
+        else None
+    )
 
-    if property_type in ["Apartment", "Appartment"]:
-        property_type = "apartment"
-    elif property_type == "House":
-        property_type = "house"
+    # =========================
+    # EXTRA PARSERS
+    # =========================
+    content = soup.find("div", id="main_content")
 
-    info["property_type"] = property_type
-
-    more_info = content.find("div", class_="general-info-wrapper")
-    info.update(parse_more_info(more_info))
-    info.update(interests.parsing(soup))
+    if content:
+        more_info = content.find("div", class_="general-info-wrapper")
+        info.update(parse_more_info(more_info))
+        info.update(interests.parsing(soup))
 
     return info
 
@@ -213,7 +239,8 @@ def to_json_file(data: dict, filepath: str) -> None:
 if __name__ == "__main__": 
   user_a = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
   url = "https://immovlan.be/en/detail/residence/for-sale/6120/nalinnes/vbe34060"
-  
+  # url = "https://immovlan.be/en/detail/cottage/for-sale/7760/velaines/rwc42720"
+  # url = "https://immovlan.be/nl/detail/studio/te-huur/1000/brussel/vbe35350"
   session = requests.Session()
   session.headers.update({
     "User-Agent": user_a,

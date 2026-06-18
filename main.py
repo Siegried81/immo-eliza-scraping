@@ -131,13 +131,17 @@ def main():
       "namur": {},
       "brabant-wallon": {},
     }
+    MAX_PROPERTIES = 10000
+    stop = False
     property_ids = []
-
     session = requests.Session()
     for province, url_list in urls.items():
       for url in url_list:
         try:
           session.headers.update({"User-Agent": user_agent.random})
+          if len(property_ids) >= MAX_PROPERTIES:
+            stop = True
+            break
           data = parse_property(url, session, province)
 
           if data["property_id"] not in property_ids:
@@ -149,6 +153,9 @@ def main():
           time.sleep(0.2)  # prevent blocking
         except:
           continue
+      
+      if stop:
+        break
     logger.info(f"Time spent : {time.perf_counter() - start_time} seconds.")
 
     # ---------------------------------------
