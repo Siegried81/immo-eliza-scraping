@@ -1,21 +1,31 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from fake_useragent import UserAgent   
 from src import parse_property, to_json_file, fetch_urls
+import csv
 import logging
 import os
 import pandas as pd
+import requests
 import time
 import csv
+import requests
+import sys
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('main_logger')
+logger.setLevel(logging.INFO)
 
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(logging.Formatter('%(asctime)s - INFO - %(message)s'))
+logger.addHandler(handler)
+
+MAX_WORKERS = 25
 
 def main():
   """
   Main entry point of the seating application.
 
   This program:
-  1. Loads configuration from a JSON file.
+  1. Loads configuration from a JSON file. -> not anymore, replaced by a UserAgent().random
   """
   # ---------------------------------------
   # Load configuration file
@@ -24,16 +34,16 @@ def main():
   base_dir = os.path.dirname(__file__)
   url_by_province_filepath = os.path.join(base_dir, "./data/url_by_province.csv")
   output_filepath = os.path.join(base_dir, "./data/data.json")
+  output_dataframe_filepath = os.path.join(base_dir, "./data/dataframe.json")
+
 
   user_agent = UserAgent()
 
-  logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-  logger = logging.getLogger(__name__)
 # ---------------------------------------
 # Choose URL source mode
 # ---------------------------------------
   print("\n=== Choose URL source ===")
-  print("1. Use previously scraped URLs")
+  print("1. Use previou1y scraped URLs")
   print("2. Scrape URLs again")
 
   use_existing_urls = False
@@ -50,7 +60,7 @@ def main():
           break
 
       else:
-          logger.info("Options are 1 or 2. Please choose again.")
+         print("Options are 1 or 2. Please choose again.")
   else:
     logger.info("No existing URL source found. Start scraping URLs.")
 
@@ -72,8 +82,12 @@ def main():
   }
   
   if not use_existing_urls:
+    start_time = time.perf_counter()
     logger.info("Fetching URLs...")
     fetch_urls(url_by_province_filepath)
+
+    seconds_past = time.perf_counter() - start_time
+    logger.info("Time spent : %f seconds.", seconds_past)   # quicker than f""
 
   total_urls = 0
   if os.path.exists(url_by_province_filepath):
@@ -90,8 +104,9 @@ def main():
 
   print("\n=== URL Source Loaded ===")
   print(f"Total URLs: {total_urls}")
+  
 
-  print("\nDo you want to continue scraping details?")
+  print("\nDo you want to scrape details?")
   print("1. Yes")
   print("2. No (exit)")
   start_scraping = False
@@ -107,7 +122,7 @@ def main():
         break
 
     else:
-        logger.info("Options are 1 or 2. Please choose again.")
+        print("Options are 1 or 2. Please choose again.")
 
   # =========================
   # 2. SCRAPE PROPERTY DETAILS
@@ -115,7 +130,6 @@ def main():
 
   if start_scraping:
     start_time = time.perf_counter()
-    logger.info(f"Time spent : {time.perf_counter() - start_time} seconds.")
     dataset = []
     data_json = {
       "antwerp": {},
@@ -130,34 +144,64 @@ def main():
       "namur": {},
       "brabant-wallon": {},
     }
-    property_ids = []
+    MAX_PROPERTIES = 10
+    count = 0
+    stop = False
+    property_ids = set()
+    tasks = []  
 
     for province, url_list in urls.items():
       for url in url_list:
-        try:
-          data = parse_property(url, {"User-Agent": user_agent.random}, province)
+        tasks.append((url, {"User-Agent": user_agent.random}, province))
+        count += 1
+        if count >= MAX_PROPERTIES:
+            stop = True
+            break
+      if stop:
+        break
 
-          if data["property_id"] not in property_ids:
-            property_ids.append(data["property_id"])
-            dataset.append(data)
-            if data["postcode"] not in data_json[province]:
-              data_json[province][data["postcode"]] = []
-            data_json[province][data["postcode"]].append(data)
-          time.sleep(0.2)  # prevent blocking
-        except:
-          continue
-    logger.info(f"Time spent : {time.perf_counter() - start_time} seconds.")
+    with requests.Session() as session:
+      
+      adapter = requests.adapters.HTTPAdapter(pool_connections=MAX_WORKERS, pool_maxsize=MAX_WORKERS)
+      session.mount('https://', adapter)
+      session.mount('http://', adapter)
+      with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+
+        future_to_task = {
+          executor.submit(parse_property, url, header, province, session): (url, province)
+          for url, header, province in tasks
+        }  
+        
+        for future in as_completed(future_to_task):
+          try:
+            data = future.result()
+          except Exception as e:
+            logger.error(e)
+            continue
+          
+          if not data or "property_id" not in data:
+            continue
+
+          if data["property_id"] in property_ids:
+            continue
+
+          property_ids.add(data["property_id"])
+          dataset.append(data)
+          if data["postcode"] not in data_json[data["province"]]:
+            data_json[data["province"]][data["postcode"]] = []
+          data_json[data["province"]][data["postcode"]].append(data)
+    seconds_past = time.perf_counter() - start_time
+    logger.info("Time spent : %f seconds.", seconds_past)
 
     # ---------------------------------------
     # 3. Save properties data to JSON file
     # ---------------------------------------
-    logger.info(f"Saving data to {output_filepath}...")
+    logger.info("Saving data to %s...", output_filepath)
     to_json_file(data_json, output_filepath)
-  else:
-    dataset = []
-  final_df = pd.DataFrame(dataset)
-  output_dataframe_filepath = os.path.join(base_dir, "./data/dataframe.json")
-  final_df.to_json(output_dataframe_filepath, orient="records", force_ascii=False, indent=4)
+
+    final_df = pd.DataFrame(dataset)
+    final_df.to_json(output_dataframe_filepath, orient="records", force_ascii=False, indent=4)
+    final_df.info()
 
 
 # ---------------------------------------
