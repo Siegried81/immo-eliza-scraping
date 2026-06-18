@@ -323,8 +323,8 @@ newdev/
 | --- | --- |
 | Max | Main scraper, HTML parsing,latitude/longitude, Zimmo scraper/parser,comment reviews, data structure work |
 | Lien | Main scraper, HTML scraper, code reviews, comment reviews, output JSON, data structure work Kanban board |
-| Imad | Documentation, hidden API exploration, Zimmo URL scraper, main URL/HTML scraper optimization, latitude/longitude/property type support |
-| Siegried | Main scraper, repository setup and GitHub management, optimization zimmo scrapper, branch protection |
+| Imad | Documentation, hidden API exploration, Zimmo URL scraper, main URL/HTML scraper optimization, latitude/longitude/property type support,code carbon |
+| Siegried | Main scraper, repository setup and GitHub management,merge requests, optimization zimmo scrapper, branch protection |
 
 ## Timeline
 
