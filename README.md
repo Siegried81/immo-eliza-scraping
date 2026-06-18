@@ -321,8 +321,8 @@ newdev/
 
 | Team member | Main contributions |
 | --- | --- |
-| Max | Main scraper, HTML parsing,latitude/longitude, Zimmo scraper/parser,comment reviews, data structure work |
-| Lien | Main scraper, HTML scraper, code reviews, comment reviews, output JSON, data structure work Kanban board |
+| Max | Main scraper, HTML parsing,latitude/longitude, Zimmo scraper/parser,comment reviews, data structure work, trello kanban board management, |
+| Lien | Main scraper, HTML scraper, code reviews, comment reviews, output JSON, data structure work |
 | Imad | Documentation, hidden API exploration, Zimmo URL scraper, main URL/HTML scraper optimization, latitude/longitude/property type support,code carbon |
 | Siegried | Main scraper, repository setup and GitHub management,merge requests, optimization zimmo scrapper, branch protection |
 
