@@ -1,0 +1,6 @@
+{
+  "main_max_workers": 25,
+  "main_max_scraped_properties": 10,
+  "url_fetcher_max_worker": 10,
+  "url_fetcher_max_pages": 50
+}
