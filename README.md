@@ -358,13 +358,7 @@ newdev/
 | Coordinates capture | Implemented from script data |
 | Secondary source | Zimmo scraper/parser draft exists |
 
-## Notes for Future Work
+## Emission in CO2
+0.00027 kg CO2eq, which is 0.27 grams of CO2.
 
-- Add `requirements.txt`.
-- Add a proper `data/raw` and `data/cleaned` structure.
-- Add checkpointing so the scraper can resume after interruption.
-- Write failed URLs to a log file.
-- Validate final row count and duplicate count.
-- Check numerical conversion for every final column.
-- Decide if Zimmo data should be merged or kept separate.
-- Prepare a short slide deck with the pipeline diagram and final dataset summary.
+
