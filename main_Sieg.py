@@ -19,7 +19,7 @@ handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(logging.Formatter('%(asctime)s - INFO - %(message)s'))
 logger.addHandler(handler)
 
-MAX_WORKERS = 600
+MAX_WORKERS = 25
 
 
 def main():
