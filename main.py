@@ -10,6 +10,7 @@ import time
 import csv
 import requests
 import sys
+from config import config
 
 logger = logging.getLogger('main_logger')
 logger.setLevel(logging.INFO)
@@ -18,7 +19,8 @@ handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(logging.Formatter('%(asctime)s - INFO - %(message)s'))
 logger.addHandler(handler)
 
-MAX_WORKERS = 25
+MAX_WORKERS = config["main_max_workers"]
+MAX_PROPERTIES = config["main_max_scraped_properties"]
 
 def main():
   """
@@ -144,7 +146,6 @@ def main():
       "namur": {},
       "brabant-wallon": {},
     }
-    MAX_PROPERTIES = 10
     count = 0
     stop = False
     property_ids = set()

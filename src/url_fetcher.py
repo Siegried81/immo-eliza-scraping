@@ -6,7 +6,11 @@ import os
 import pandas as pd      
 import requests                                   
 import time        
-import sys                               
+import sys     
+from config import config
+
+MAX_PAGES = config["url_fetcher_max_pages"]
+MAX_WORKERS = config["url_fetcher_max_worker"] 
 
 # this generates a new random browser identity each time we call ua.random
 user_agent = UserAgent()
@@ -61,10 +65,7 @@ GEO_DATA = {
             "luxembourg", 
             "namur", 
             "brabant-wallon"]}
-}
-
-MAX_PAGES = 50
-MAX_WORKERS = 10                                  # max nb of threads running simultaneously
+}                                # max nb of threads running simultaneously
 
 def extract_links(html):
 
