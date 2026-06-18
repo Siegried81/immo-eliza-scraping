@@ -56,12 +56,22 @@ user_agent = UserAgent()
 counter = 0
 
 def fetch_soup(url):
+    """
+    Function making a request 
+    :param: string for url
+    Returns BeautifullSoup object if found else None
+    """
     try:
         r = Session.get(url, headers={"User-Agent": user_agent.random}, timeout=10)               
         return bs4.BeautifulSoup(r.text, "html.parser") if r.status_code == 200 else None 
     except: return None                                                 
 
 def parse_float(value):
+    """
+    Function parsing a string to make a float
+    :param: string
+    Returns a float or None
+    """
     value = value.replace(".", "")
     value = value.replace(",", ".")
     value = re.sub(r"[^(\d|\.)]", "", value)
@@ -69,7 +79,15 @@ def parse_float(value):
         return float(value)
     else:
         return None
+
 def parse_property(url, geo, prov):
+    """
+    Function parsing a web page for properties
+    :param: string for url
+    :param: string for region
+    :param: string for province
+    Returns a dictionary with the properties or None
+    """
     global counter
     counter += 1
     if counter % 300 == 0:
@@ -116,7 +134,11 @@ def parse_property(url, geo, prov):
         return None
 
 def html_scraper_zimmo(input_file):
-
+    """
+    Function principal scraper
+    :param: string path input file
+    Returns a list of dictionaries containing the scraped properties
+    """
     all_links_to_scrape = []
     with open(input_file, newline="") as f:
         reader = csv.DictReader(f, delimiter=";")
@@ -137,6 +159,12 @@ def html_scraper_zimmo(input_file):
 
 
 def to_csv(Csv_file, all_properties):
+    """
+    Function making a csv file
+    :param: string path csv file
+    :param: list of dictionaries
+    Outputs a csv file
+    """
     keys = ["region", "province", "property_id", "property_type", "postal_code", "city_name", 
             "address", "price", "bedroom_count", "livable_surface", "total_surface", "build_year", "garage", "peb_category"]
     with open(Csv_file, "w", newline="", encoding="utf-8") as f:       

@@ -37,13 +37,21 @@ lock = threading.Lock()
 
 
 def make_page_url(search_url, page_number):
-    # take the search url and add the page number before #gallery
+    """
+    Function to add a page number to an url
+    :param: string of url
+    :param: string of page number
+    Returns a string for the new url
+    """
     clean_url = search_url.replace("#gallery", "")
     return f"{clean_url}&p={page_number}#gallery"
 
 
 def get_headers():
-    # fake a normal browser so Zimmo gives the real page
+    """
+    Function making random headers for a requests
+    Returns a dictionary
+    """
     return {
         "User-Agent": ua.random,
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -52,7 +60,11 @@ def get_headers():
 
 
 def get_property_links_from_page(html):
-    # grab every href, keep only Zimmo property pages
+    """
+    Function taking every links targeting property pages
+    :param: an html
+    Returns a list of links
+    """
     soup = BeautifulSoup(html, "html.parser")
     links = []
 
@@ -76,6 +88,13 @@ def get_property_links_from_page(html):
 
 
 def scrape_province_links(province_name, search_url, total_pages):
+    """
+    Function scraping links by province
+    :param: string province name
+    :param: string url
+    :param: integer number of pages
+    Returns a tuble (string(province name), list of links)
+    """
     province_links = []
 
     for page_number in range(1, total_pages + 1):
@@ -106,7 +125,11 @@ def scrape_province_links(province_name, search_url, total_pages):
 
 
 def fetching_urls_zimmo(output_file):
-
+    """
+    Function principal for fetching urls
+    :param: string for output_file path
+    Outputs a csv file with a province and an url per line
+    """
     all_province_links = []
 
     # multithread per province (parallel scraping)
