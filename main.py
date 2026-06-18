@@ -7,6 +7,8 @@ import os
 import pandas as pd
 import requests
 import time
+import csv
+import requests
 import sys
 
 #logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -44,9 +46,9 @@ def main():
 # ---------------------------------------
 # Choose URL source mode
 # ---------------------------------------
-  logger.info("\n=== Choose URL source ===")
-  logger.info("1. Use previou1y scraped URLs")
-  logger.info("2. Scrape URLs again")
+  print("\n=== Choose URL source ===")
+  print("1. Use previou1y scraped URLs")
+  print("2. Scrape URLs again")
 
   use_existing_urls = False
   if os.path.exists(url_by_province_filepath):
@@ -62,7 +64,7 @@ def main():
           break
 
       else:
-          logger.info("Options are 1 or 2. Please choose again.")
+         print("Options are 1 or 2. Please choose again.")
   else:
     logger.info("No existing URL source found. Start scraping URLs.")
 
@@ -104,13 +106,13 @@ def main():
                 urls[province].append(url)
                 total_urls += 1
 
-  logger.info("\n=== URL Source Loaded ===")
-  logger.info(f"Total URLs: {total_urls}")
+  print("\n=== URL Source Loaded ===")
+  print(f"Total URLs: {total_urls}")
   
 
-  logger.info("\nDo you want to scrape details?")
-  logger.info("1. Yes")
-  logger.info("2. No (exit)")
+  print("\nDo you want to scrape details?")
+  print("1. Yes")
+  print("2. No (exit)")
   start_scraping = False
   while True:
     choice = input("Choose 1 or 2: ").strip()
@@ -124,7 +126,7 @@ def main():
         break
 
     else:
-        logger.info("Options are 1 or 2. Please choose again.")
+        print("Options are 1 or 2. Please choose again.")
 
   # =========================
   # 2. SCRAPE PROPERTY DETAILS
@@ -146,12 +148,21 @@ def main():
       "namur": {},
       "brabant-wallon": {},
     }
+    MAX_PROPERTIES = 10
+    count = 0
+    stop = False
     property_ids = set()
     tasks = []  # collect all property jobs before sending them to the threads - imad
 
     for province, url_list in urls.items():
       for url in url_list:
         tasks.append((url, {"User-Agent": user_agent.random}, province))
+        count += 1
+        if count >= MAX_PROPERTIES:
+            stop = True
+            break
+      if stop:
+        break
 
     with requests.Session() as session:
       # Match pool sizes to your MAX_WORKERS so threads don't fight over connections
