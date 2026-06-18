@@ -337,6 +337,10 @@ newdev/
 | Wednesday | Optimization, documentation, validation, review |
 | Final review period | Dataset checks, troubleshooting, presentation preparation |
 
+<img width="2072" height="987" alt="timeline" src="https://github.com/user-attachments/assets/a93531e6-4172-4255-9a4d-932cbce9313d" />
+
+
+
 ## Teacher Requirements Coverage
 
 | Requirement | Current status |
