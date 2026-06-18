@@ -1,20 +1,44 @@
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from src.points_of_interest import Interests_parser
-import html
 import json
 import logging
-import pandas as pd
+import os
 import re
-import requests
+import sys
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+# Putting the logs in a file saves time and better history.  filemode 'w' to overwrite a previous run (default 'a' for append)
+#logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+#logger = logging.getLogger(__name__)
+
+# --- Setup Logger 1: The Scraper Tracker ---
+file_logger = logging.getLogger('scraper')
+file_logger.setLevel(logging.INFO)
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+log_file_path = os.path.join(project_root, 'data', 'html_scraper.log')
+# Create a file handler for just the scraper logs
+file_handler = logging.FileHandler(log_file_path, mode='w')
+file_handler.setFormatter(logging.Formatter('%(asctime)s - SCRAPE - %(message)s'))
+file_logger.addHandler(file_handler)
+
+
+# --- Setup Logger 2: The Error Tracker ---
+terminal_logger = logging.getLogger('scraper_terminal')
+terminal_logger.setLevel(logging.INFO)
+
+# Create a separate file handler for just errors
+terminal_handler = logging.StreamHandler(sys.stdout)
+terminal_handler.setFormatter(logging.Formatter('%(asctime)s - INFO - %(message)s'))
+terminal_logger.addHandler(terminal_handler)
 
 #"property_id": None, "property_type": None, "province": None, "postal_code": None, "city_name": None, "address": None, "price": None, 
 FIELD_MAP = {"livable_surface": None, "total_surface": None, "bedroom_count": None, "build_year": None, "property_state": None,"peb_category": None, "garage": None, "terrace": None, "swimming_pool": None}
 
 interests = Interests_parser()
+
+counter = 0
 
 def parse_more_info(more_info: Tag | None) -> dict:
     """Extract the more info detail of each property from the HTML content.
@@ -55,22 +79,27 @@ def parse_more_info(more_info: Tag | None) -> dict:
 
     return field
 
-def parse_property(url: str, header: dict, province: str) -> dict:
+def parse_property(url: str, header: dict, province: str, session) -> dict:
     """Extract the data detail of each property from the HTML content.
     Args:        
       url (str): The url link to the property.
     Returns:     
       dict | {}: data detail of each property or an empty dict if url not found.   
     """
+    global counter 
+    counter += 1
     if not url:
+      terminal_logger.warning("No url")
       return {}
     
-    logger.info(f"Processing property in {province} from {url}...")
+    file_logger.info("Processing property in %s from %s...", province, url)
+    if counter % 300 == 0:
+      terminal_logger.warning("Page n° %i : Processing property in %s from %s...", counter, province, url)   # Heartbeat log
     try:
-      r = requests.get(url, headers=header, timeout=20)
+      r = session.get(url, headers=header, timeout=10)
       r.raise_for_status()
-    except requests.RequestException as e:
-      logger.error(e)
+    except session.RequestException as e:
+      terminal_logger.error(e)
       return {}
     
     soup = BeautifulSoup(r.text, "lxml")
@@ -78,12 +107,12 @@ def parse_property(url: str, header: dict, province: str) -> dict:
 
     content = soup.find("div", id="main_content")
     if not content:
-      logger.error("main_content not found")
+      terminal_logger.error("main_content not found")
       return {}
     
     page_header = content.find("div", class_="detail__header_title")
     if not page_header:
-      logger.error("detail__header_title not found")
+      terminal_logger.error("detail__header_title not found")
       return {}
     
     vlancode = page_header.find("span", class_="vlancode")

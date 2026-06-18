@@ -2,17 +2,41 @@ from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor 
 from fake_useragent import UserAgent   
 from src.points_of_interest import Interests_parser    
-import logging                         
+import logging   
+import os                      
 import pandas as pd      
 import requests                                   
-import time                                       
+import time        
+import sys                               
 
 
 # this generates a new random browser identity each time we call ua.random
 user_agent = UserAgent()
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+#logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+#logger = logging.getLogger(__name__)
+
+# --- Setup Logger 1: The Scraper Tracker ---
+file_logger = logging.getLogger('fetcher')
+file_logger.setLevel(logging.INFO)
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(script_dir)
+log_file_path = os.path.join(project_root, 'data', 'url_fetcher.log')
+# Create a file handler for just the scraper logs
+file_handler = logging.FileHandler(log_file_path, mode='w')
+file_handler.setFormatter(logging.Formatter('%(asctime)s - SCRAPE - %(message)s'))
+file_logger.addHandler(file_handler)
+
+
+# --- Setup Logger 2: The Error Tracker ---
+terminal_logger = logging.getLogger('fetcher_terminal')
+terminal_logger.setLevel(logging.INFO)
+
+# Create a separate file handler for just errors
+terminal_handler = logging.StreamHandler(sys.stdout)
+terminal_handler.setFormatter(logging.Formatter('%(asctime)s - INFO - %(message)s'))
+terminal_logger.addHandler(terminal_handler)
 
 BASE_URL = "https://immovlan.be/en/real-estate?transactiontypes=for-sale&propertytypes=house,apartment&islifeannuity=no&includenewconstruction=no&noindex=1"
 
@@ -49,7 +73,9 @@ def fetch_data(region_slug, province_slug, region_name, min_p, max_p, session):
     # fct executed by threads to scrape a specific province
     #session = requests.Session()                  # persistent session for efficient networking
     results = []                                  # local list to collect data for this specific thread
-    logger.info(f"Threader scraping in {province_slug} between {min_p} € and {max_p} €")
+    file_logger.info("Threader scaping in %s between %i € and %i €", province_slug, min_p, max_p)
+    if min_p == 0:
+        terminal_logger.warning("Threader scaping in %s between %i € and %i €", province_slug, min_p, max_p)   # Heartbeat Log
     for page in range(1, MAX_PAGES + 1):
                                                   # URL with region, province & page nb filters
         url = f"{BASE_URL}&regions={region_slug}&provinces={province_slug}&minprice={min_p}&maxprice={max_p}&page={page}"
@@ -64,10 +90,10 @@ def fetch_data(region_slug, province_slug, region_name, min_p, max_p, session):
                 results.append({"region": region_name, "province": province_slug, "url": link})
 
                    
-            time.sleep(0.2)
+            time.sleep(0.3)
             
         except Exception as e:
-            logger.info(f"[ERROR] {province_slug} page {page}: {e}")
+            terminal_logger.error(f"[ERROR] {province_slug} page {page}: {e}")
             break
             
     return results
@@ -84,7 +110,7 @@ def fetch_urls(filepath):
                     all_data.extend(future.result())
     except KeyboardInterrupt: # catch the ctrl+C
         #print("Keyboard interruption.")
-        logger.info("Keyboard interruption.")
+        terminal_logger.warning("Keyboard interruption.")
 
     df = pd.DataFrame(all_data)                   # convert list of dic into DF
     df = df.drop_duplicates(subset=["url"])
