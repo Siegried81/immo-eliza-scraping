@@ -1,0 +1,202 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from fake_useragent import UserAgent   
+from src import parse_property, to_json_file, fetch_urls
+
+import csv
+import logging
+import os
+import pandas as pd
+import requests
+import time
+import sys
+
+#logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+#logger = logging.getLogger(__name__)
+logger = logging.getLogger('main_logger')
+logger.setLevel(logging.INFO)
+
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(logging.Formatter('%(asctime)s - INFO - %(message)s'))
+logger.addHandler(handler)
+
+MAX_WORKERS = 600
+
+
+def main():
+  """
+  Main entry point of the seating application.
+
+  This program:
+  1. Loads configuration from a JSON file. -> not anymore, replaced by a UserAgent().random
+  """
+
+  # ---------------------------------------
+  # Load configuration file
+  # ---------------------------------------
+  base_dir = os.path.dirname(__file__)
+
+  url_by_province_filepath = os.path.join(base_dir, "./data/url_by_province.csv")
+  output_filepath = os.path.join(base_dir, "./data/data.json")
+  output_dataframe_filepath = os.path.join(base_dir, "./data/dataframe.json")
+
+  user_agent = UserAgent()
+
+  # ---------------------------------------
+  # Choose URL source mode
+  # ---------------------------------------
+  logger.info("\n=== Choose URL source ===")
+  logger.info("1. Use previou1y scraped URLs")
+  logger.info("2. Scrape URLs again")
+
+  use_existing_urls = False
+  if os.path.exists(url_by_province_filepath):
+    while True:
+      choice_url_mode = input("Choose an option: ")
+
+      if choice_url_mode == "1":
+          use_existing_urls = True
+          break
+
+      elif choice_url_mode == "2":
+          use_existing_urls = False
+          break
+
+      else:
+          logger.info("Options are 1 or 2. Please choose again.")
+  else:
+    logger.info("No existing URL source found. Start scraping URLs.")
+
+  # ---------------------------------------
+  # 1. Get Urls
+  # ---------------------------------------
+  urls = {
+     "antwerp": [],
+    "limburg": [], 
+    "east-flanders": [],
+    "vlaams-brabant": [], 
+    "west-flanders": [],
+    "brussels": [], 
+    "hainaut": [], 
+    "liege": [],
+    "luxembourg": [], 
+    "namur": [],
+    "brabant-wallon": []
+  }
+  
+  if not use_existing_urls:
+    start_time = time.perf_counter()
+    logger.info("Fetching URLs...")
+    fetch_urls(url_by_province_filepath)
+    logger.info("Time spent : %f seconds.", time.perf_counter() - start_time)
+
+  total_urls = 0
+  if os.path.exists(url_by_province_filepath):
+    with open(url_by_province_filepath, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter=";")
+
+        for row in reader:
+            province = row.get("province", "").strip().lower()
+            url = row.get("url", "").strip()
+
+            if province in urls and url.startswith("http"):
+                urls[province].append(url)
+                total_urls += 1
+
+  logger.info("\n=== URL Source Loaded ===")
+  logger.info(f"Total URLs: {total_urls}")
+
+  logger.info("\nDo you want to scrape details?")
+  logger.info("1. Yes")
+  logger.info("2. No (exit)")
+
+  start_scraping = False
+  while True:
+    choice = input("Choose 1 or 2: ").strip()
+
+    if choice == "1":
+        start_scraping = True
+        break
+    elif choice == "2":
+        start_scraping = False
+        break
+    else:
+        logger.info("Options are 1 or 2. Please choose again.")
+
+  # =========================
+  # 2. SCRAPE PROPERTY DETAILS
+  # =========================
+
+  if start_scraping:
+    start_time = time.perf_counter()
+    dataset = []
+    data_json = {
+      "antwerp": {},
+      "limburg": {},
+      "east-flanders": {},
+      "vlaams-brabant": {},
+      "west-flanders": {},
+      "brussels": {},
+      "hainaut": {},
+      "liege": {},
+      "luxembourg": {},
+      "namur": {},
+      "brabant-wallon": {},
+    }
+
+    property_ids = []
+
+    with requests.Session() as session:
+      adapter = requests.adapters.HTTPAdapter(
+          pool_connections=MAX_WORKERS,
+          pool_maxsize=MAX_WORKERS
+      )
+      session.mount('https://', adapter)
+      session.mount('http://', adapter)
+
+      with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+
+        future_to_task = {
+          executor.submit(parse_property, url, {"User-Agent": user_agent.random}, province, session): (url, province)
+          for province, url_list in urls.items()
+          for url in url_list
+        }
+
+        for future in as_completed(future_to_task):
+          try:
+            data = future.result()
+          except Exception as e:
+            logger.error(e)
+            continue
+
+          if not data or "property_id" not in data:
+            continue
+
+          if data["property_id"] in property_ids:
+            continue
+
+          property_ids.append(data["property_id"])
+          dataset.append(data)
+
+          if data["postcode"] not in data_json[data["province"]]:
+            data_json[data["province"]][data["postcode"]] = []
+
+          data_json[data["province"]][data["postcode"]].append(data)
+
+    logger.info("Time spent : %f seconds.", time.perf_counter() - start_time)
+
+    # ---------------------------------------
+    # 3. Save properties data to JSON file
+    # ---------------------------------------
+    logger.info("Saving data to %s...", output_filepath)
+    to_json_file(data_json, output_filepath)
+
+    final_df = pd.DataFrame(dataset)
+    final_df.to_json(output_dataframe_filepath, orient="records", force_ascii=False, indent=4)
+    final_df.info()
+
+
+# ---------------------------------------
+# Program entry point
+# ---------------------------------------
+if __name__ == "__main__":
+    main()
