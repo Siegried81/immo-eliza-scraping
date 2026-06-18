@@ -11,10 +11,6 @@ from html import unescape
 import os
 import sys
 
-# Putting the logs in a file saves time and better history.  filemode 'w' to overwrite a previous run (default 'a' for append)
-#logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-#logger = logging.getLogger(__name__)
-
 # --- Setup Logger 1: The Scraper Tracker ---
 file_logger = logging.getLogger('scraper')
 file_logger.setLevel(logging.INFO)
@@ -162,7 +158,7 @@ def parse_property(url: str, header: dict, province: str, session: requests.Sess
     try:
       r = session.get(url, headers=header, timeout=10)
       r.raise_for_status()
-    except session.RequestException as e:
+    except RequestException as e:
       terminal_logger.error(e)
       return {}
     
@@ -213,7 +209,7 @@ def parse_property(url: str, header: dict, province: str, session: requests.Sess
                 terminal_logger.error("Latitude and longtitude parse error")
                 pass
 
-        # early exit nếu đủ dữ liệu
+        # early exit 
         if general_info and street_address and lat and lng:
             break
 
@@ -275,14 +271,4 @@ def to_json_file(data: dict, filepath: str) -> None:
 
 
 if __name__ == "__main__": 
-  user_a = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
-  url = "https://immovlan.be/en/detail/residence/for-sale/6120/nalinnes/vbe34060"
-  # url = "https://immovlan.be/en/detail/cottage/for-sale/7760/velaines/rwc42720"
-  # url = "https://immovlan.be/nl/detail/studio/te-huur/1000/brussel/vbe35350"
-  session = requests.Session()
-  session.headers.update()
-  data = parse_property(url, {
-    "User-Agent": user_a,
-    "Accept-Language": "en-US,en;q=0.9"
-  }, "brussels", session)
-  to_json_file(data, "./data/data.json")
+  pass

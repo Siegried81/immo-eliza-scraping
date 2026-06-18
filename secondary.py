@@ -1,11 +1,9 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from fake_useragent import UserAgent   
 from src import fetching_urls_zimmo, html_scraper_zimmo, to_csv
 import csv
 import logging
 import os
 import pandas as pd
-import requests
 import time
 import sys
 
@@ -20,10 +18,7 @@ MAX_WORKERS = 25
 
 def main():
   """
-  Main entry point of the seating application.
-
-  This program:
-  1. Loads configuration from a JSON file. -> not anymore, replaced by a UserAgent().random
+  
   """
   # ---------------------------------------
   # Load configuration file
@@ -32,10 +27,7 @@ def main():
   base_dir = os.path.dirname(__file__)
   url_by_province_filepath = os.path.join(base_dir, "./data/zimmo_urls_by_province.csv")
   output_filepath = os.path.join(base_dir, "./data/zimmo_properties.csv")
-  output_dataframe_filepath = os.path.join(base_dir, "./data/dataframe.json")
-
-
-  user_agent = UserAgent()
+  output_dataframe_zimmo = os.path.join(base_dir, "./data/dataframe_zimmo.json")
 
 # ---------------------------------------
 # Choose URL source mode
@@ -85,7 +77,7 @@ def main():
     fetching_urls_zimmo(url_by_province_filepath)
 
     seconds_past = time.perf_counter() - start_time
-    logger.info("Time spent : %f seconds.", seconds_past)   # quicker than f""
+    logger.info("Time spent : %f seconds.", seconds_past)   
 
   total_urls = 0
   if os.path.exists(url_by_province_filepath):
@@ -129,19 +121,7 @@ def main():
   if start_scraping:
     start_time = time.perf_counter()
     dataset = []
-    data_json = {
-      "antwerp": {},
-      "limburg": {},
-      "east-flanders": {},
-      "vlaams-brabant": {},
-      "west-flanders": {},
-      "brussels": {},
-      "hainaut": {},
-      "liege": {},
-      "luxembourg": {},
-      "namur": {},
-      "brabant-wallon": {},
-    }
+
     dataset = html_scraper_zimmo(url_by_province_filepath)
     seconds_past = time.perf_counter() - start_time
     logger.info("Time spent : %f seconds.", seconds_past)
@@ -149,6 +129,8 @@ def main():
     # ---------------------------------------
     # 3. Save properties data to JSON file
     # ---------------------------------------
+    df = pd.DataFrame(dataset)
+    df.to_json(output_dataframe_zimmo, orient="records", force_ascii=False, indent=4)
     to_csv(output_filepath, dataset)
 
 # ---------------------------------------

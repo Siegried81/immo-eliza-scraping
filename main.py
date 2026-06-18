@@ -11,8 +11,6 @@ import csv
 import requests
 import sys
 
-#logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-#logger = logging.getLogger(__name__)
 logger = logging.getLogger('main_logger')
 logger.setLevel(logging.INFO)
 
@@ -41,8 +39,6 @@ def main():
 
   user_agent = UserAgent()
 
-  #logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-  #logger = logging.getLogger(__name__)
 # ---------------------------------------
 # Choose URL source mode
 # ---------------------------------------
@@ -152,7 +148,7 @@ def main():
     count = 0
     stop = False
     property_ids = set()
-    tasks = []  # collect all property jobs before sending them to the threads - imad
+    tasks = []  
 
     for province, url_list in urls.items():
       for url in url_list:
@@ -165,7 +161,7 @@ def main():
         break
 
     with requests.Session() as session:
-      # Match pool sizes to your MAX_WORKERS so threads don't fight over connections
+      
       adapter = requests.adapters.HTTPAdapter(pool_connections=MAX_WORKERS, pool_maxsize=MAX_WORKERS)
       session.mount('https://', adapter)
       session.mount('http://', adapter)
@@ -174,7 +170,7 @@ def main():
         future_to_task = {
           executor.submit(parse_property, url, header, province, session): (url, province)
           for url, header, province in tasks
-        }  # each thread scrapes one property page - imad
+        }  
         
         for future in as_completed(future_to_task):
           try:
