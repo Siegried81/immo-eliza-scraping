@@ -6,7 +6,11 @@ import os
 import pandas as pd      
 import requests                                   
 import time        
-import sys                               
+import sys     
+from config import config
+
+MAX_PAGES = config["url_fetcher_max_pages"]
+MAX_WORKERS = config["url_fetcher_max_worker"] 
 
 # this generates a new random browser identity each time we call ua.random
 user_agent = UserAgent()
@@ -66,10 +70,7 @@ GEO_DATA = {
             "namur", 
             "brabant-wallon"]}
 }
-
-MAX_PAGES = 50
-MAX_WORKERS = 10                                  # max nb of threads running simultaneously
-
+                                 # max nb of threads running simultaneously
 def extract_links(html):
 
     """Parses the HTML response to identify all property detail links,
@@ -87,7 +88,6 @@ def extract_links(html):
     return list(set(links))                      
 
 def fetch_data(region_slug, province_slug, region_name, min_p, max_p, session):
-
     """Iterates through search result pages for a specific province and price 
     range, extracts property URLs, and stores them with their associated 
     regional metadata."""
@@ -119,7 +119,6 @@ def fetch_data(region_slug, province_slug, region_name, min_p, max_p, session):
     return results
 
 def fetch_urls(filepath):
-
     """Orchestrates a multi-threaded scraping operation across all defined 
     regions and price ranges, aggregates the discovered URLs, removes 
     duplicates, and exports the final list to a CSV file."""
