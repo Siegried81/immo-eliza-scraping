@@ -15,6 +15,10 @@ MAX_WORKERS = config["url_fetcher_max_worker"]
 # this generates a new random browser identity each time we call ua.random
 user_agent = UserAgent()
 
+"""Defines scraping parameters like target URL, price brackets to maximize search 
+  coverage, and geographical data. Sets up dual logging for file tracking 
+  and terminal status updates."""
+
 # --- Setup Logger 1: The Scraper Tracker ---
 file_logger = logging.getLogger('fetcher')
 file_logger.setLevel(logging.INFO)
@@ -65,9 +69,12 @@ GEO_DATA = {
             "luxembourg", 
             "namur", 
             "brabant-wallon"]}
-}                                # max nb of threads running simultaneously
-
+}
+                                 # max nb of threads running simultaneously
 def extract_links(html):
+
+    """Parses the HTML response to identify all property detail links,
+    converts relative paths to absolute URLs, and returns a unique set."""
 
     if not html: return []                        
     soup = BeautifulSoup(html, "html.parser")     
@@ -81,6 +88,10 @@ def extract_links(html):
     return list(set(links))                      
 
 def fetch_data(region_slug, province_slug, region_name, min_p, max_p, session):
+    """Iterates through search result pages for a specific province and price 
+    range, extracts property URLs, and stores them with their associated 
+    regional metadata."""
+
     results = []                                  
     file_logger.info("Threader scaping in %s between %i € and %i €", province_slug, min_p, max_p)
     if min_p == 0:
@@ -108,6 +119,10 @@ def fetch_data(region_slug, province_slug, region_name, min_p, max_p, session):
     return results
 
 def fetch_urls(filepath):
+    """Orchestrates a multi-threaded scraping operation across all defined 
+    regions and price ranges, aggregates the discovered URLs, removes 
+    duplicates, and exports the final list to a CSV file."""
+    
     all_data = [] 
     tasks = [(reg, prov, data["name"], p[0], p[1]) for reg, data in GEO_DATA.items() for prov in data["provinces"] for p in PRICE_RANGES]
     

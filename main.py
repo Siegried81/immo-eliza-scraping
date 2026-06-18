@@ -24,11 +24,10 @@ MAX_PROPERTIES = config["main_max_scraped_properties"]
 
 def main():
   """
-  Main entry point of the seating application.
-
-  This program:
-  1. Loads configuration from a JSON file. -> not anymore, replaced by a UserAgent().random
+    Orchestrates the scraping process by managing URL source selection,
+    property data extraction using multi-threading, and saving the results.
   """
+
   # ---------------------------------------
   # Load configuration file
   # ---------------------------------------
@@ -37,8 +36,7 @@ def main():
   url_by_province_filepath = os.path.join(base_dir, "./data/url_by_province.csv")
   output_filepath = os.path.join(base_dir, "./data/data.json")
   output_dataframe_filepath = os.path.join(base_dir, "./data/dataframe.json")
-
-
+  
   user_agent = UserAgent()
 
 # ---------------------------------------
@@ -69,6 +67,8 @@ def main():
   # ---------------------------------------
   # 1. Get Urls
   # ---------------------------------------
+  """Determines whether to fetch fresh URLs from the source or load 
+     existing ones from a CSV file for the scraping process."""
   urls = {
      "antwerp": [],
     "limburg": [], 
@@ -129,6 +129,8 @@ def main():
   # =========================
   # 2. SCRAPE PROPERTY DETAILS
   # =========================
+  """Initializes a ThreadPoolExecutor to concurrently scrape detailed property 
+    data, handles request sessions, and processes results to populate the dataset."""
 
   if start_scraping:
     start_time = time.perf_counter()
@@ -197,6 +199,9 @@ def main():
     # ---------------------------------------
     # 3. Save properties data to JSON file
     # ---------------------------------------
+    """ Aggregates the scraped data into a structured JSON format and exports 
+        the dataset to both a JSON file and a pandas DataFrame."""
+
     logger.info("Saving data to %s...", output_filepath)
     to_json_file(data_json, output_filepath)
 
