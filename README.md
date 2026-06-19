@@ -15,7 +15,7 @@ The project is still in progress. The README is written as a working documentati
 
 ## Project Goals
 
-- Collect at least 10,000 unique Belgian properties.
+- Collect at least 10,000 unique Belgian properties (currently 16K+ from Immovlan and 6K+ from Zimmo).
 - Cover all Belgian provinces.
 - Save missing values as `None`.
 - Prefer numerical values where possible.
@@ -196,7 +196,7 @@ The final JSON is grouped like this:
 The Zimmo URL scraper is in:
 
 ```text
-src/zimmo_scraper.py
+src/zimmo_url_fetcher.py
 ```
 
 It collects property URLs by province and saves them as JSON. This scraper uses BeautifulSoup to grab property links from search pages.
@@ -204,7 +204,7 @@ It collects property URLs by province and saves them as JSON. This scraper uses 
 The Zimmo parser is in:
 
 ```text
-src/zimmo_parser.py
+src/zimmo_html_scraper.py
 ```
 
 It extracts a smaller set of fields such as:
@@ -242,10 +242,8 @@ Activate it:
 Install dependencies:
 
 ```bash
-pip install beautifulsoup4 lxml requests pandas fake-useragent
+pip install -r requirement.txt
 ```
-
-There is currently no final `requirements.txt`, so this section should be updated once dependencies are frozen.
 
 ## Usage
 
@@ -270,25 +268,43 @@ python src/html_scraper.py
 Run the Zimmo URL scraper:
 
 ```bash
-python src/zimmo_scraper.py
+python src/zimmo_url_fetcher.py
 ```
 
 ## Repository Structure
 
 ```text
-newdev/
+main/
+  .gitignore
+  config.json
+  config.py
   main.py
+  secondary.py
+  requirement.txt
   README.md
-  assets/
-    BE.txt
   data/
+    data.json
+    dataframe.json
+    salary_mean_localities.csv
     url_by_province.csv
+    zimmo_properties.csv
+    zimmo_urls_by_province.csv
+  dev/
+    firstscrapingSieg.py
+    Imadscrapping.py
+    lien_belgium_properties.json
+    lien_test.ipynb
+    max-eploratory-zimmo.ipynb
+    max-exploratory-work.ipynb
+    MLscraping-training.py
   src/
+    __init__.py
     html_scraper.py
+    nearest_cities.py
     points_of_interest.py
     url_fetcher.py
-    zimmo_parser.py
-    zimmo_scraper.py
+    zimmo_html_scraper.py
+    zimmo_url_fetcher.py
 ```
 
 ## Current Features
@@ -305,11 +321,12 @@ newdev/
 - Duplicate checking by property ID.
 - JSON output grouped by province and postal code.
 - Secondary Zimmo URL scraper and parser draft.
+- Configurable scraping parameters via `config.json` and `config.py`.
 - Basic logging during scraping.
 
 ## Current Limitations
 
-- The final 10,000+ dataset still needs full validation.
+- The final 16,000+ Immovlan and 6,000+ Zimmo dataset still needs full validation.
 - Some fields may be missing depending on the property page.
 - Some boolean fields still depend on exact website text, so they need review.
 - Progress checkpointing is not fully implemented yet.
