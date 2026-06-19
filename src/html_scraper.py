@@ -100,35 +100,6 @@ def js_to_json(text):
                     return None
 
 def parse_more_info(more_info: Tag | None) -> dict:
-    """Extract the more info detail of each property from the HTML content.
-    Args:        
-      html (str): The HTML content to parse.
-    Returns:     
-      dict | {}: data detail of each property or an empty dict if url not found.   
-    """
-    start = text.find("{")
-    if start == -1:
-        return None
-
-    depth = 0
-    for i in range(start, len(text)):
-        if text[i] == "{":
-            depth += 1
-        elif text[i] == "}":
-            depth -= 1
-            if depth == 0:
-                raw = text[start:i+1]
-
-                # convert JS object to JSON format
-                raw = re.sub(r'(\w+)\s*:', r'"\1":', raw)
-                raw = raw.replace("'", '"')
-
-                try:
-                    return json.loads(raw)
-                except:
-                    return None
-
-def parse_more_info(more_info: Tag | None) -> dict:
 
     """Extracts specific property details from the HTML content (e.g., surface area, amenities, 
         energy rating) from the HTML content by mapping element headers to defined fields.
