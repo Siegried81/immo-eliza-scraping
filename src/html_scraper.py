@@ -10,7 +10,7 @@ from requests import RequestException
 from html import unescape
 import os
 import sys
-
+import pandas as pd
 # --- Setup Logger 1: The Scraper Tracker ---
 """ Initializes two separate logging systems: one for detailed scraping 
     tracking (file-based) and one for real-time terminal error monitoring."""
@@ -232,11 +232,9 @@ def parse_property(url: str, header: dict, province: str, session: requests.Sess
     info["longitude"] = lng
 
     price_raw = general_info.get("price")
-    info["price"] = (
-        int(float(price_raw.replace(" ", "").replace(".", "").replace(",", ".")))
-        if isinstance(price_raw, str) and price_raw.strip()
-        else None
-    )
+    price = pd.to_numeric(price_raw, errors="coerce")
+    price = None if pd.isna(price) else int(price)
+    info["price"] = price
 
     # =========================
     # EXTRA PARSERS
