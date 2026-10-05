@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from fake_useragent import UserAgent   
 from src import parse_property, to_json_file, fetch_urls
+from src.polite import USER_AGENT, can_fetch
 import csv
 import logging
 import os
@@ -19,6 +19,8 @@ handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(logging.Formatter('%(asctime)s - INFO - %(message)s'))
 logger.addHandler(handler)
 
+# A handful of workers, not dozens: src/polite.py holds a per-host delay, so a
+# bigger pool only queues threads up waiting for their turn.
 MAX_WORKERS = config["main_max_workers"]
 MAX_PROPERTIES = config["main_max_scraped_properties"]
 
@@ -36,8 +38,6 @@ def main():
   url_by_province_filepath = os.path.join(base_dir, "./data/url_by_province.csv")
   output_filepath = os.path.join(base_dir, "./data/data.json")
   output_dataframe_filepath = os.path.join(base_dir, "./data/dataframe.json")
-  
-  user_agent = UserAgent()
 
 # ---------------------------------------
 # Choose URL source mode
@@ -155,13 +155,19 @@ def main():
 
     for province, url_list in urls.items():
       for url in url_list:
-        tasks.append((url, {"User-Agent": user_agent.random}, province))
+        tasks.append((url, province))
         count += 1
         if count >= MAX_PROPERTIES:
             stop = True
             break
       if stop:
         break
+
+    # Ask robots.txt once before spawning any worker, so a host that forbids
+    # the detail pages costs one request instead of thousands of refusals.
+    if tasks and not can_fetch(tasks[0][0]):
+      logger.error("robots.txt disallows %s for %s. Nothing was fetched.", tasks[0][0], USER_AGENT)
+      return
 
     with requests.Session() as session:
       
@@ -171,9 +177,9 @@ def main():
       with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
 
         future_to_task = {
-          executor.submit(parse_property, url, header, province, session): (url, province)
-          for url, header, province in tasks
-        }  
+          executor.submit(parse_property, url, province, session): (url, province)
+          for url, province in tasks
+        }
         
         for future in as_completed(future_to_task):
           try:

@@ -1,0 +1,9 @@
+# Runtime dependencies actually imported by main.py, secondary.py and src/.
+beautifulsoup4
+lxml
+requests
+pandas
+urllib3
+
+# Tests
+pytest

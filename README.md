@@ -11,6 +11,8 @@ The current pipeline works in two main steps:
 1. Collect property URLs from Immovlan search pages.
 2. Visit each property page and parse the useful fields into a structured JSON dataset.
 
+Every request goes through `src/polite.py`, which checks the host's `robots.txt`, waits between requests to the same host, and sends one honest, identifiable User-Agent. See [Scraping politeness](#scraping-politeness).
+
 The project is still in progress. The README is written as a working documentation draft so the team can update it as the scraper, dataset, and review process evolve.
 
 ## Project Goals
@@ -22,6 +24,48 @@ The project is still in progress. The README is written as a working documentati
 - Avoid duplicate rows by checking the property ID.
 - Output structured data in JSON.
 - Keep the code understandable enough for the full team to review and maintain.
+- Stay within what the source sites allow, and stay identifiable while doing it.
+
+## Scraping politeness
+
+All HTTP traffic goes through `polite_get()` in `src/polite.py`. It does three
+things before a request leaves the process:
+
+1. **robots.txt.** The host's `robots.txt` is fetched once per host and cached.
+   A path the file disallows raises `RobotsDisallowed` and is never requested.
+   A `robots.txt` that cannot be read at all is treated as "disallowed": an
+   unreachable file is not permission. `main.py` also checks the first detail
+   URL before starting the thread pool, so a host that forbids those pages
+   costs one request instead of thousands of refusals.
+2. **One honest User-Agent.** Every request identifies the crawler as
+   `ImmoElizaBot/1.0` with a contact address, taken from `scraper_contact` in
+   `config.json`. Headers passed by a caller are merged in, but the User-Agent
+   cannot be overridden. Earlier versions rotated random browser identities
+   through `fake_useragent`; that is evasion, and it leaves a site operator no
+   way to ask us to slow down.
+3. **A delay per host.** `request_delay_seconds` (default `1.0`) is the minimum
+   gap between two requests to the same host, and a `Crawl-delay` in
+   `robots.txt` raises it. Threads take turns, so N workers make N spaced
+   requests instead of N simultaneous ones.
+
+Because the delay is per host, a large thread pool only puts threads in a
+queue. `main_max_workers` and `url_fetcher_max_worker` are therefore `4`, not
+the 25 and 10 used before.
+
+Settings live in `config.json`:
+
+```json
+{
+  "main_max_workers": 4,
+  "main_max_scraped_properties": 10,
+  "url_fetcher_max_worker": 4,
+  "url_fetcher_max_pages": 50,
+  "request_delay_seconds": 1.0,
+  "scraper_contact": "immo-eliza-scraping@example.org"
+}
+```
+
+Set `scraper_contact` to a real address before running a full scrape.
 
 ## Sources
 
@@ -61,8 +105,8 @@ We use price ranges because search pages can have result limits. Splitting by pr
 The scraper uses:
 
 - `requests.Session()` for connection reuse.
-- `ThreadPoolExecutor` for faster URL collection.
-- `fake_useragent` to rotate user agents.
+- `ThreadPoolExecutor` for parallel URL collection, with a small worker count.
+- `src/polite.py` for the robots.txt check, the per-host delay and the project's User-Agent.
 - Deduplication before saving URLs.
 
 The URL output is saved to:
@@ -137,10 +181,11 @@ It:
 5. Groups the final JSON by province and postal code.
 6. Saves the final dataset.
 
-The final output is saved to:
+The final output is saved to two files:
 
 ```text
-belgium_properties.json
+data/data.json        # grouped by province and postal code
+data/dataframe.json   # flat list of records, ready for pandas
 ```
 
 ## Output Structure
@@ -196,15 +241,15 @@ The final JSON is grouped like this:
 The Zimmo URL scraper is in:
 
 ```text
-src/zimmo_scraper.py
+src/zimmo_url_fetcher.py
 ```
 
-It collects property URLs by province and saves them as JSON. This scraper uses BeautifulSoup to grab property links from search pages.
+It collects property URLs by province and saves them as CSV. This scraper uses BeautifulSoup to grab property links from search pages.
 
 The Zimmo parser is in:
 
 ```text
-src/zimmo_parser.py
+src/zimmo_html_scraper.py
 ```
 
 It extracts a smaller set of fields such as:
@@ -242,10 +287,8 @@ Activate it:
 Install dependencies:
 
 ```bash
-pip install beautifulsoup4 lxml requests pandas fake-useragent
+pip install -r requirements.txt
 ```
-
-There is currently no final `requirements.txt`, so this section should be updated once dependencies are frozen.
 
 ## Usage
 
@@ -255,40 +298,48 @@ Run the full Immovlan pipeline from the project root:
 python main.py
 ```
 
-Run only the Immovlan URL collector:
+Run the Zimmo pipeline (secondary source) from the project root:
 
 ```bash
-python src/url_fetcher.py
+python secondary.py
 ```
 
-Run a single property parser test:
+Both are interactive: they ask whether to reuse the URLs already in `data/` or
+to collect them again. The modules under `src/` are imported, not run directly:
+they rely on `config` and `src.polite`, which resolve from the project root.
+
+Run the tests (no network, nothing is fetched):
 
 ```bash
-python src/html_scraper.py
+pip install -r requirements.txt
+pytest
 ```
 
-Run the Zimmo URL scraper:
-
-```bash
-python src/zimmo_scraper.py
-```
+Expected: `27 passed`. `tests/test_polite.py` fakes every HTTP response and
+fails the test if any code tries to make a real request.
 
 ## Repository Structure
 
 ```text
-newdev/
-  main.py
+immo-eliza-scraping/
+  main.py                   # Immovlan pipeline (URLs + details)
+  secondary.py              # Zimmo pipeline
+  config.py                 # loads config.json at import time
+  config.json               # worker counts, request delay, contact address
+  requirements.txt
   README.md
-  assets/
-    BE.txt
-  data/
-    url_by_province.csv
+  data/                     # scraped CSV/JSON output and scraper logs
   src/
-    html_scraper.py
-    points_of_interest.py
-    url_fetcher.py
-    zimmo_parser.py
-    zimmo_scraper.py
+    polite.py               # robots.txt, per-host delay, User-Agent
+    url_fetcher.py          # Immovlan search pages -> property URLs
+    html_scraper.py         # Immovlan property page -> dict
+    points_of_interest.py   # preschool/station/supermarket distances
+    nearest_cities.py       # nearest major city and its distance
+    zimmo_url_fetcher.py    # Zimmo search pages -> property URLs
+    zimmo_html_scraper.py   # Zimmo property page -> dict
+  tests/
+    test_polite.py
+  dev/                      # individual exploration scripts and notebooks
 ```
 
 ## Current Features
@@ -297,7 +348,7 @@ newdev/
 - Price-range splitting to get more results.
 - Threaded URL scraping.
 - Session reuse during URL collection.
-- User-Agent rotation.
+- robots.txt check, per-host delay and a single identifiable User-Agent (`src/polite.py`).
 - Detail page HTML parsing.
 - Latitude and longitude extraction.
 - Property type extraction from page scripts.

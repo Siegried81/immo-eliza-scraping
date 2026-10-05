@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 from src.points_of_interest import Interests_parser
 from src.nearest_cities import nearest_city
+from src.polite import RobotsDisallowed, polite_get
 import json
 import logging
 import re
@@ -136,14 +137,19 @@ def parse_more_info(more_info: Tag | None) -> dict:
             
     return field
 
-def parse_property(url: str, header: dict, province: str, session: requests.Session) -> dict:  
+def parse_property(url: str, province: str, session: requests.Session) -> dict:
     """Extract the data detail of each property from the HTML content.
-    Args:        
+
+    The fetch goes through polite_get, which checks robots.txt, waits for the
+    host's turn and sends the project's own User-Agent. That is why this takes
+    no header argument: the headers are not the caller's to choose.
+
+    Args:
       url (str): The url link to the property.
-    Returns:     
-      dict | {}: data detail of each property or an empty dict if url not found.   
+    Returns:
+      dict | {}: data detail of each property or an empty dict if url not found.
     """
-    global counter 
+    global counter
     counter += 1
     if not url:
         terminal_logger.warning("No url")
@@ -153,8 +159,11 @@ def parse_property(url: str, header: dict, province: str, session: requests.Sess
     if counter % 300 == 0:
       terminal_logger.warning("Page n° %i : Processing property in %s from %s...", counter, province, url)   # Heartbeat log
     try:
-      r = session.get(url, headers=header, timeout=10)
+      r = polite_get(session, url, timeout=10)
       r.raise_for_status()
+    except RobotsDisallowed as e:
+      terminal_logger.error(e)
+      return {}
     except RequestException as e:
       terminal_logger.error(e)
       return {}

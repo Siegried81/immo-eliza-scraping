@@ -6,8 +6,10 @@ import os
 import time
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from fake_useragent import UserAgent   
 import sys
+
+from config import config
+from src.polite import RobotsDisallowed, polite_get
 
 file_logger = logging.getLogger('zimmo_scraper')
 file_logger.setLevel(logging.INFO)
@@ -45,26 +47,33 @@ Provinces_map = {
 }
 
 Csv_file = "zimmo_parser_optimized.csv"
-Max_workers = 25
+# A handful of workers, not dozens: src/polite.py holds a per-host delay, so a
+# bigger pool only queues threads up waiting for their turn.
+Max_workers = config["main_max_workers"]
 
 Session = requests.Session()
 adapter = requests.adapters.HTTPAdapter(pool_connections=Max_workers, pool_maxsize=Max_workers)
 Session.mount('https://', adapter)
 Session.mount('http://', adapter)
 
-user_agent = UserAgent()
 counter = 0
 
 def fetch_soup(url):
     """
-    Function making a request 
+    Function making a request
+
+    Goes through polite_get, so robots.txt is checked, the per-host delay is
+    respected and the project's own User-Agent is sent.
     :param: string for url
     Returns BeautifullSoup object if found else None
     """
     try:
-        r = Session.get(url, headers={"User-Agent": user_agent.random}, timeout=10)               
-        return bs4.BeautifulSoup(r.text, "html.parser") if r.status_code == 200 else None 
-    except: return None                                                 
+        r = polite_get(Session, url, timeout=10)
+        return bs4.BeautifulSoup(r.text, "html.parser") if r.status_code == 200 else None
+    except RobotsDisallowed as error:
+        terminal_logger.error("robots.txt disallows %s: %s", url, error)
+        return None
+    except Exception: return None
 
 def parse_float(value):
     """
