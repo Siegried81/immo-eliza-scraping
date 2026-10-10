@@ -2,6 +2,7 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 from src.points_of_interest import Interests_parser
 from src.nearest_cities import nearest_city
+from src.compliance import GATE, FetchDisallowed
 import json
 import logging
 import re
@@ -153,8 +154,12 @@ def parse_property(url: str, header: dict, province: str, session: requests.Sess
     if counter % 300 == 0:
       terminal_logger.warning("Page n° %i : Processing property in %s from %s...", counter, province, url)   # Heartbeat log
     try:
+      GATE.assert_can_fetch(url, session)
       r = session.get(url, headers=header, timeout=10)
       r.raise_for_status()
+    except FetchDisallowed as e:
+      terminal_logger.error(e)
+      return {}
     except RequestException as e:
       terminal_logger.error(e)
       return {}

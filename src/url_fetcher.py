@@ -8,6 +8,7 @@ import requests
 import time        
 import sys     
 from config import config
+from src.compliance import GATE
 
 MAX_PAGES = config["url_fetcher_max_pages"]
 MAX_WORKERS = config["url_fetcher_max_worker"] 
@@ -100,7 +101,8 @@ def fetch_data(region_slug, province_slug, region_name, min_p, max_p, session):
                                                   
         url = f"{BASE_URL}&regions={region_slug}&provinces={province_slug}&minprice={min_p}&maxprice={max_p}&page={page}"
         try:
-            r = session.get(url, headers={"User-Agent": user_agent.random}, timeout=20)      
+            GATE.assert_can_fetch(url, session)
+            r = session.get(url, headers={"User-Agent": user_agent.random}, timeout=20)
             if r.status_code != 200: break
             
             links = extract_links(r.text) 
