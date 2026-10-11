@@ -1,0 +1,8 @@
+{
+  "main_max_workers": 4,
+  "main_max_scraped_properties": 10,
+  "url_fetcher_max_worker": 4,
+  "url_fetcher_max_pages": 50,
+  "request_delay_seconds": 1.0,
+  "scraper_contact": "immo-eliza-scraping@example.org"
+}

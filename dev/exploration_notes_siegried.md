@@ -1,3 +1,8 @@
+> Exploration notes from the first scraping sprint (June 2026), kept as written.
+> The custom User-Agent and anti-blocking tests below are what was tried then;
+> the scraper in `src/` now sends one honest, identifying User-Agent and waits
+> between requests (`src/polite.py`, `src/compliance.py`).
+
 ## Exploratory Tests and Scraping Scripts Documentation
 
 ### 1. First connection test
