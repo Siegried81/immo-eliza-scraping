@@ -242,7 +242,7 @@ Activate it:
 Install dependencies:
 
 ```bash
-pip install -r requirement.txt
+pip install -r requirements.txt
 ```
 
 ## Usage
@@ -250,8 +250,20 @@ pip install -r requirement.txt
 Run the full Immovlan pipeline from the project root:
 
 ```bash
-python main.py
+python main.py                       # interactive menus
+python main.py --yes                 # no prompts: reuse data/url_by_province.csv, then scrape
+python main.py --yes --resume        # keep data/properties.jsonl and skip its URLs
+python main.py --yes --refetch-urls  # collect the URL list again first
+python main.py --max 500             # cap this run (default: config.json)
+python -m pytest -q                  # the robots gate and the checkpoint, no network
 ```
+
+Every fetch asks the site's `robots.txt` first and fails closed when it cannot
+be read (`src/compliance.py`). Each property is appended to
+`data/properties.jsonl` as soon as it is parsed, so an interrupted run keeps
+what it had; `data.json` and `dataframe.json` are rebuilt from it at the end.
+Terms of use and data retention are not checked by code: read them before a
+large run.
 
 Run only the Immovlan URL collector:
 
@@ -280,7 +292,7 @@ main/
   config.py
   main.py
   secondary.py
-  requirement.txt
+  requirements.txt
   README.md
   data/
     data.json
