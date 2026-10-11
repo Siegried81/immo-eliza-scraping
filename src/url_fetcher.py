@@ -1,20 +1,18 @@
 from bs4 import BeautifulSoup                     
-from concurrent.futures import ThreadPoolExecutor 
-from fake_useragent import UserAgent    
-import logging   
-import os                      
-import pandas as pd      
-import requests                                   
-import time        
-import sys     
+from concurrent.futures import ThreadPoolExecutor
+import logging
+import os
+import pandas as pd
+import requests
+import time
+import sys
 from config import config
-from src.compliance import GATE
+from src.polite import RobotsDisallowed, polite_get
 
 MAX_PAGES = config["url_fetcher_max_pages"]
-MAX_WORKERS = config["url_fetcher_max_worker"] 
-
-# this generates a new random browser identity each time we call ua.random
-user_agent = UserAgent()
+# A handful of workers, not dozens: polite_get serialises requests per host, so
+# extra threads only queue up waiting for their turn.
+MAX_WORKERS = config["url_fetcher_max_worker"]
 
 """Defines scraping parameters like target URL, price brackets to maximize search 
   coverage, and geographical data. Sets up dual logging for file tracking 
@@ -101,19 +99,21 @@ def fetch_data(region_slug, province_slug, region_name, min_p, max_p, session):
                                                   
         url = f"{BASE_URL}&regions={region_slug}&provinces={province_slug}&minprice={min_p}&maxprice={max_p}&page={page}"
         try:
-            GATE.assert_can_fetch(url, session)
-            r = session.get(url, headers={"User-Agent": user_agent.random}, timeout=20)
+            # polite_get checks robots.txt and holds the per-host delay itself,
+            # so no sleep is needed in this loop.
+            r = polite_get(session, url, timeout=20)
             if r.status_code != 200: break
-            
-            links = extract_links(r.text) 
-            if not links: break 
-            
-            for link in links:                    
+
+            links = extract_links(r.text)
+            if not links: break
+
+            for link in links:
                 results.append({"region": region_name, "province": province_slug, "url": link})
 
-                   
-            time.sleep(0.3)
-            
+        except RobotsDisallowed as e:
+            terminal_logger.error("[ROBOTS] %s", e)
+            break
+
         except Exception as e:
             terminal_logger.error(f"[ERROR] {province_slug} page {page}: {e}")
             break

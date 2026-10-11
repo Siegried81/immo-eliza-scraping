@@ -1,4 +1,3 @@
-from fake_useragent import UserAgent   
 from src import fetching_urls_zimmo, html_scraper_zimmo, to_csv
 import csv
 import logging
@@ -6,6 +5,7 @@ import os
 import pandas as pd
 import time
 import sys
+from config import config
 
 logger = logging.getLogger('main_logger')
 logger.setLevel(logging.INFO)
@@ -14,7 +14,9 @@ handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(logging.Formatter('%(asctime)s - INFO - %(message)s'))
 logger.addHandler(handler)
 
-MAX_WORKERS = 25
+# Read from config.json like the main pipeline, instead of a second hardcoded
+# number that could drift away from the politeness settings.
+MAX_WORKERS = config["main_max_workers"]
 
 def main():
   """

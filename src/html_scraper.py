@@ -2,7 +2,7 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 from src.points_of_interest import Interests_parser
 from src.nearest_cities import nearest_city
-from src.compliance import GATE, FetchDisallowed
+from src.polite import RobotsDisallowed, polite_get
 import json
 import logging
 import re
@@ -11,7 +11,7 @@ from requests import RequestException
 from html import unescape
 import os
 import sys
-import pandas as pd
+
 # --- Setup Logger 1: The Scraper Tracker ---
 """ Initializes two separate logging systems: one for detailed scraping 
     tracking (file-based) and one for real-time terminal error monitoring."""
@@ -137,14 +137,19 @@ def parse_more_info(more_info: Tag | None) -> dict:
             
     return field
 
-def parse_property(url: str, header: dict, province: str, session: requests.Session) -> dict:  
+def parse_property(url: str, province: str, session: requests.Session) -> dict:
     """Extract the data detail of each property from the HTML content.
-    Args:        
+
+    The fetch goes through polite_get, which checks robots.txt, waits for the
+    host's turn and sends the project's own User-Agent. That is why this takes
+    no header argument: the headers are not the caller's to choose.
+
+    Args:
       url (str): The url link to the property.
-    Returns:     
-      dict | {}: data detail of each property or an empty dict if url not found.   
+    Returns:
+      dict | {}: data detail of each property or an empty dict if url not found.
     """
-    global counter 
+    global counter
     counter += 1
     if not url:
         terminal_logger.warning("No url")
@@ -154,10 +159,9 @@ def parse_property(url: str, header: dict, province: str, session: requests.Sess
     if counter % 300 == 0:
       terminal_logger.warning("Page n° %i : Processing property in %s from %s...", counter, province, url)   # Heartbeat log
     try:
-      GATE.assert_can_fetch(url, session)
-      r = session.get(url, headers=header, timeout=10)
+      r = polite_get(session, url, timeout=10)
       r.raise_for_status()
-    except FetchDisallowed as e:
+    except RobotsDisallowed as e:
       terminal_logger.error(e)
       return {}
     except RequestException as e:
@@ -237,9 +241,11 @@ def parse_property(url: str, header: dict, province: str, session: requests.Sess
     info["longitude"] = lng
 
     price_raw = general_info.get("price")
-    price = pd.to_numeric(price_raw, errors="coerce")
-    price = None if pd.isna(price) else int(price)
-    info["price"] = price
+    info["price"] = (
+        int(float(price_raw.replace(" ", "").replace(".", "").replace(",", ".")))
+        if isinstance(price_raw, str) and price_raw.strip()
+        else None
+    )
 
     # =========================
     # EXTRA PARSERS

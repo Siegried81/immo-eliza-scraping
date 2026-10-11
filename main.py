@@ -18,7 +18,6 @@ Three things the orchestration guarantees, because losing them cost real runs:
 """
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from fake_useragent import UserAgent
 from src import parse_property, to_json_file, fetch_urls
 from src import checkpoint
 from src.compliance import GATE, FetchDisallowed
@@ -96,7 +95,6 @@ def main():
     output_dataframe_filepath = os.path.join(base_dir, "data", "dataframe.json")
     checkpoint_path = os.path.join(base_dir, "data", "properties.jsonl")
 
-    user_agent = UserAgent()
 
     # ---------------------------------------
     # 1. Get URLs
@@ -170,7 +168,7 @@ def main():
 
             with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
                 future_to_task = {
-                    executor.submit(parse_property, url, {"User-Agent": user_agent.random}, province, session): (url, province)
+                    executor.submit(parse_property, url, province, session): (url, province)
                     for url, province in tasks
                 }
                 for future in as_completed(future_to_task):

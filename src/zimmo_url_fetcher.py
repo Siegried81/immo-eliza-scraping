@@ -1,17 +1,16 @@
 import csv
 import requests
 import threading
-import time
 import urllib3
 
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from fake_useragent import UserAgent
 from urllib.parse import urljoin
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+from config import config
+from src.polite import HEADERS, RobotsDisallowed, polite_get
 
-ua = UserAgent()
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 OUTPUT_FILE = "province_zimmo_url.json"
 
@@ -49,14 +48,15 @@ def make_page_url(search_url, page_number):
 
 def get_headers():
     """
-    Function making random headers for a requests
+    Function returning the headers used for every request
+
+    The project's own User-Agent from src/polite.py, plus the language this
+    scraper reads the Zimmo pages in. It used to return a random browser
+    identity per call, which hid the crawler from the site instead of
+    identifying it.
     Returns a dictionary
     """
-    return {
-        "User-Agent": ua.random,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
-    }
+    return {**HEADERS, "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8"}
 
 
 def get_property_links_from_page(html):
@@ -103,7 +103,12 @@ def scrape_province_links(province_name, search_url, total_pages):
         print(f"{province_name}: page {page_number}/{total_pages}")
 
         try:
-            response = session.get(page_url, headers=get_headers(), timeout=10, verify=False)
+            # verify=False is kept as it was; TLS verification for zimmo.be is a
+            # separate question from the politeness rules added here.
+            response = polite_get(session, page_url, timeout=10, headers=get_headers(), verify=False)
+        except RobotsDisallowed as error:
+            print(f"robots.txt disallows {page_url}: {error}")
+            break
         except requests.RequestException:
             print(f"failed page: {page_url}")
             continue
@@ -117,8 +122,6 @@ def scrape_province_links(province_name, search_url, total_pages):
         # thread-safe merge
         with lock:
             province_links.extend(page_links)
-
-        time.sleep(0.2) 
 
     # remove duplicates but keep order
     return province_name, list(dict.fromkeys(province_links))
@@ -137,7 +140,7 @@ def fetching_urls_zimmo(output_file):
         province_name, info = item
         return scrape_province_links(province_name, info["url"], info["pages"])
 
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=config["url_fetcher_max_worker"]) as executor:
 
         futures = [
             executor.submit(worker, item)
