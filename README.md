@@ -17,7 +17,7 @@ The project is still in progress. The README is written as a working documentati
 
 ## Project Goals
 
-- Collect at least 10,000 unique Belgian properties.
+- Collect at least 10,000 unique Belgian properties (currently 16K+ from Immovlan and 6K+ from Zimmo).
 - Cover all Belgian provinces.
 - Save missing values as `None`.
 - Prefer numerical values where possible.
@@ -295,8 +295,22 @@ pip install -r requirements.txt
 Run the full Immovlan pipeline from the project root:
 
 ```bash
-python main.py
+python main.py                       # interactive menus
+python main.py --yes                 # no prompts: reuse data/url_by_province.csv, then scrape
+python main.py --yes --resume        # keep data/properties.jsonl and skip its URLs
+python main.py --yes --refetch-urls  # collect the URL list again first
+python main.py --max 500             # cap this run (default: config.json)
+python -m pytest -q                  # the robots gate and the checkpoint, no network
 ```
+
+Every fetch asks the site's `robots.txt` first and fails closed when it cannot
+be read (`src/compliance.py`). Each property is appended to
+`data/properties.jsonl` as soon as it is parsed, so an interrupted run keeps
+what it had; `data.json` and `dataframe.json` are rebuilt from it at the end.
+Terms of use and data retention are not checked by code: read them before a
+large run.
+
+Run only the Immovlan URL collector:
 
 Run the Zimmo pipeline (secondary source) from the project root:
 
@@ -315,8 +329,14 @@ pip install -r requirements.txt
 pytest
 ```
 
-Expected: `27 passed`. `tests/test_polite.py` fakes every HTTP response and
-fails the test if any code tries to make a real request.
+Run the Zimmo URL scraper:
+
+```bash
+python src/zimmo_url_fetcher.py
+```
+
+Expected: `36 passed`. Every test fakes its HTTP responses and fails if any
+code tries to make a real request.
 
 ## Repository Structure
 
@@ -330,7 +350,9 @@ immo-eliza-scraping/
   README.md
   data/                     # scraped CSV/JSON output and scraper logs
   src/
-    polite.py               # robots.txt, per-host delay, User-Agent
+    polite.py               # per-host delay, honest User-Agent, robots.txt per fetch
+    compliance.py           # robots.txt gate main.py asks once before the workers
+    checkpoint.py           # properties.jsonl written as they arrive; --resume
     url_fetcher.py          # Immovlan search pages -> property URLs
     html_scraper.py         # Immovlan property page -> dict
     points_of_interest.py   # preschool/station/supermarket distances
@@ -339,6 +361,8 @@ immo-eliza-scraping/
     zimmo_html_scraper.py   # Zimmo property page -> dict
   tests/
     test_polite.py
+    test_compliance.py
+    test_checkpoint.py
   dev/                      # individual exploration scripts and notebooks
 ```
 
@@ -356,11 +380,12 @@ immo-eliza-scraping/
 - Duplicate checking by property ID.
 - JSON output grouped by province and postal code.
 - Secondary Zimmo URL scraper and parser draft.
+- Configurable scraping parameters via `config.json` and `config.py`.
 - Basic logging during scraping.
 
 ## Current Limitations
 
-- The final 10,000+ dataset still needs full validation.
+- The final 16,000+ Immovlan and 6,000+ Zimmo dataset still needs full validation.
 - Some fields may be missing depending on the property page.
 - Some boolean fields still depend on exact website text, so they need review.
 - Progress checkpointing is not fully implemented yet.
