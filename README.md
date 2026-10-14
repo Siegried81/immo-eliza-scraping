@@ -335,7 +335,7 @@ Run the Zimmo URL scraper:
 python src/zimmo_url_fetcher.py
 ```
 
-Expected: `36 passed`. Every test fakes its HTTP responses and fails if any
+Expected: `37 passed`. Every test fakes its HTTP responses and fails if any
 code tries to make a real request.
 
 ## Repository Structure
