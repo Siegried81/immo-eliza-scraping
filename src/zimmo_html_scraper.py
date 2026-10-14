@@ -100,7 +100,7 @@ def parse_property(url, geo, prov):
     global counter
     counter += 1
     if counter % 300 == 0:
-        terminal_logger(f"page {counter} currently in {Provinces_map[prov]}")
+        terminal_logger.info(f"page {counter} currently in {Provinces_map[prov]}")
     soup = fetch_soup(url)
     if not soup: return None
     try:
