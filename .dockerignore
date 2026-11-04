@@ -1,0 +1,8 @@
+.git
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+# Scrape output is produced at run time and mounted from the host.
+data/
