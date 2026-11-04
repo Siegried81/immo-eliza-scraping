@@ -1,6 +1,7 @@
 # immo-eliza-scraping — threaded Immovlan scraper.
-# The robots.txt gate (src.compliance.GATE) runs before any fetch; this image
-# does not touch it. Needs network at run time.
+# Every fetch checks robots.txt (src.polite.polite_get); main.py also runs
+# src.compliance.GATE once before the thread pool starts. This image changes none of that.
+# Needs network at run time.
 #   docker build -t immo-eliza-scraping .
 #   docker run --rm -v "$PWD/data:/app/data" immo-eliza-scraping
 FROM python:3.12-slim
@@ -11,7 +12,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Use requirements.txt (not the stale requirement.txt that also sits in the repo).
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
