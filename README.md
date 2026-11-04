@@ -339,6 +339,16 @@ pip install -r requirements.txt
 pytest
 ```
 
+### Docker
+
+```bash
+docker build -t immo-eliza-scraping .
+docker run --rm -v "$PWD/data:/app/data" immo-eliza-scraping
+```
+
+Mount `data/` so `--resume` can read what an earlier run wrote and so
+`data/properties.jsonl` survives the container.
+
 Run the Zimmo URL scraper:
 
 ```bash
